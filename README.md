@@ -121,4 +121,7 @@ Contributions are welcome:
 - [Thinking Machines Lab](https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/).
 - Datasets: XSTest, ToxicChat, In-the-wild jailbreak prompts, JailbreakBench.
 
-djev is independent and not affiliated with TypeSafe. Hosted-Jev results were measured through the public API on 2026-09-28 with `jev-1.13.0`, and may change with later versions. License: to be decided.
+djev is independent and not affiliated with TypeSafe. Hosted-Jev results were measured through the public API on 2026-09-28 with `jev-1.13.0`, and may change with later versions.
+
+## License
+[MIT](LICENSE) for djev's code, patches and results. Upstream models, datasets and TypeSafe's cookbook content remain under their own terms.
