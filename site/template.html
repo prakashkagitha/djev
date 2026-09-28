@@ -1,0 +1,855 @@
+<title>Deterministic Jev</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a lab notebook. One reading column (~66ch) with figures that break out wider,
+   evidence first; every claim sits next to the run that backs it. */
+:root {
+  --bg: #f2f4f6;
+  --surface: #fbfcfd;
+  --ink: #0f1722;
+  --ink-2: #445061;
+  --muted: #6f7a89;
+  --rule: #d9dfe6;
+  --grid: #e5e9ee;
+  --on: #2a78d6;       /* Deterministic Jev */
+  --off: #eb6834;      /* stock serving, deterministic mode off */
+  --jev: #1baf7a;      /* hosted Jev, published numbers */
+  --on-wash: rgba(42,120,214,.10);
+  --off-wash: rgba(235,104,52,.12);
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --step--1: .84rem; --step-0: 1.06rem; --step-1: 1.3rem; --step-2: 1.75rem; --step-3: 2.6rem; --step-4: 3.6rem;
+  --read: 42rem; --wide: 68rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1116; --surface: #141a21; --ink: #edf1f5; --ink-2: #b3bcc7; --muted: #8893a1;
+    --rule: #27303b; --grid: #1e2630; --on: #3987e5; --off: #d95926; --jev: #199e70;
+    --on-wash: rgba(57,135,229,.16); --off-wash: rgba(217,89,38,.16);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1116; --surface: #141a21; --ink: #edf1f5; --ink-2: #b3bcc7; --muted: #8893a1;
+  --rule: #27303b; --grid: #1e2630; --on: #3987e5; --off: #d95926; --jev: #199e70;
+  --on-wash: rgba(57,135,229,.16); --off-wash: rgba(217,89,38,.16);
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: var(--step-0);
+  line-height: 1.6; padding-inline: 20px; padding-block: 0 5rem; }
+main { display: grid; gap: 4.5rem; }
+section, header { display: grid; gap: 1.1rem; justify-items: center; }
+section > *, header > * { width: 100%; max-width: var(--read); }
+section > .wide, header > .wide { max-width: var(--wide); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; text-wrap: balance; margin: 0; letter-spacing: -.015em; }
+h1 { font-size: var(--step-4); line-height: 1; }
+h2 { font-size: var(--step-2); line-height: 1.15; }
+h3 { font-size: var(--step-1); line-height: 1.25; font-weight: 500; }
+p { margin: 0; }
+a { color: var(--on); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--on); outline-offset: 2px; }
+.eyebrow { font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.deck { font-size: var(--step-1); line-height: 1.45; color: var(--ink-2); }
+.mono, code { font-family: var(--font-mono); font-size: .88em; }
+code { background: var(--grid); padding: .05em .35em; border-radius: 3px; }
+header { padding-top: 4.5rem; gap: 1.3rem; }
+.byline { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); }
+
+/* evidence tiles: the four figures the page argues from */
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule); }
+.tile { background: var(--surface); padding: 1rem 1.1rem; display: grid; gap: .25rem; align-content: start; }
+.tile .v { font-family: var(--font-display); font-size: var(--step-2); font-weight: 700; line-height: 1.1; }
+.tile .k { font-size: var(--step--1); color: var(--ink-2); line-height: 1.4; }
+.tile .src { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); }
+@media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+figure { margin: 0; display: grid; gap: .75rem; }
+figcaption { font-size: var(--step--1); color: var(--ink-2); line-height: 1.5; max-width: var(--read); }
+figcaption b { color: var(--ink); }
+.panel { background: var(--surface); border: 1px solid var(--rule); padding: 1.1rem 1.2rem 1rem; display: grid; gap: .8rem; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; }
+@media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+.panel-title { display: flex; justify-content: space-between; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
+.panel-title h3 { font-size: var(--step-0); font-weight: 700; }
+.count { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-2); }
+.legend { display: flex; gap: 1.1rem; flex-wrap: wrap; font-size: var(--step--1); color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.sw { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.sw.dot { border-radius: 50%; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: var(--font-mono); fill: var(--muted); font-size: 11px; }
+svg .ink { fill: var(--ink-2); }
+.scroll { overflow-x: auto; }
+
+/* float64 receipt */
+.receipt { font-family: var(--font-mono); font-size: .8rem; line-height: 1.7; display: grid; gap: 0; }
+.receipt .row { display: grid; grid-template-columns: 2.2rem 11.5rem 1fr; gap: .8rem; padding-block: .15rem;
+  border-bottom: 1px dashed var(--rule); align-items: baseline; }
+.receipt .row:last-child { border-bottom: 0; }
+.receipt .n { color: var(--muted); text-align: right; }
+.receipt .hex { color: var(--ink-2); word-break: break-all; }
+.receipt .hex b { color: var(--off); font-weight: 600; }
+.receipt.on .hex b { color: var(--on); }
+.q { font-style: italic; color: var(--ink-2); }
+
+blockquote { margin: 0; padding-left: 1rem; border-left: 3px solid var(--jev); color: var(--ink-2); }
+blockquote cite { display: block; font-style: normal; font-family: var(--font-mono); font-size: .74rem; color: var(--muted); margin-top: .3rem; }
+
+table { border-collapse: collapse; width: 100%; font-size: var(--step--1); font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-family: var(--font-mono); font-weight: 600; font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+td.num, th.num { text-align: right; font-family: var(--font-mono); }
+tr.hl td { background: var(--on-wash); }
+.tag { font-family: var(--font-mono); font-size: .7rem; padding: .1rem .4rem; border-radius: 3px; white-space: nowrap; }
+.tag.on { background: var(--on-wash); color: var(--ink); box-shadow: inset 0 0 0 1px var(--on); }
+.tag.off { background: var(--off-wash); color: var(--ink); box-shadow: inset 0 0 0 1px var(--off); }
+
+ol.steps, ul.plain { margin: 0; padding-left: 1.2rem; display: grid; gap: .5rem; }
+.cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; }
+@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+.cols h3 { font-size: var(--step-0); font-weight: 700; margin-bottom: .4rem; }
+.cols ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .45rem; font-size: .96rem; }
+pre { margin: 0; background: var(--surface); border: 1px solid var(--rule); padding: .9rem 1rem; overflow-x: auto;
+  font-family: var(--font-mono); font-size: .78rem; line-height: 1.6; color: var(--ink-2); }
+.note { font-size: var(--step--1); color: var(--muted); }
+hr { border: 0; border-top: 1px solid var(--rule); width: 100%; max-width: var(--wide); margin: 0; }
+
+#tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--rule); box-shadow: 0 6px 20px rgba(0,0,0,.14); padding: .5rem .65rem; font-family: var(--font-mono);
+  font-size: .72rem; line-height: 1.5; max-width: 22rem; }
+@media (prefers-reduced-motion: no-preference) { .cell { transition: opacity .15s; } }
+nav.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  border-bottom: 1px solid var(--rule); margin-inline: -20px; padding-inline: 20px; }
+nav.top div { max-width: var(--wide); margin: 0 auto; display: flex; gap: 1.4rem; align-items: center;
+  overflow-x: auto; padding-block: .7rem; }
+nav.top b { font-family: var(--font-display); font-size: var(--step-0); margin-right: auto; white-space: nowrap; }
+nav.top a { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-2); text-decoration: none;
+  padding-block: .2rem; border-bottom: 2px solid transparent; white-space: nowrap; }
+nav.top a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--on); }
+.page { display: grid; gap: 4.5rem; }
+.page-head { padding-top: 3.5rem; }
+.more { font-family: var(--font-mono); font-size: var(--step--1); }
+.strip { display: grid; gap: .9rem; }
+.strip .lane { display: grid; grid-template-columns: 9.5rem 1fr; gap: .8rem; align-items: center; }
+.strip .who { font-family: var(--font-display); font-weight: 700; font-size: .98rem; line-height: 1.2; }
+.strip .who small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: .7rem; color: var(--muted); }
+.strip .calls { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 4px; }
+.call { border: 1.5px solid var(--c); border-radius: 3px; padding: .3rem 0; text-align: center; font-family: var(--font-mono);
+  font-size: .68rem; line-height: 1.25; color: var(--ink-2); background: var(--surface); }
+.call b { display: block; font-size: .74rem; color: var(--ink); }
+.call.yes { background: var(--w); }
+@media (max-width: 640px) { .strip .lane { grid-template-columns: 1fr; } .strip .calls { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+.why3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; }
+@media (max-width: 760px) { .why3 { grid-template-columns: 1fr; } }
+.why3 h3 { font-size: var(--step-0); font-weight: 700; margin-bottom: .3rem; }
+.why3 p { font-size: .96rem; color: var(--ink-2); }
+.opt td:first-child { font-family: var(--font-display); font-weight: 700; min-width: 10rem; }
+.phase { display: grid; grid-template-columns: 7rem 1fr; gap: 1rem; padding-block: .8rem; border-top: 1px solid var(--rule); }
+.phase .when { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); }
+.phase h3 { font-size: var(--step-0); font-weight: 700; margin-bottom: .3rem; }
+.phase ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .3rem; font-size: .96rem; }
+@media (max-width: 640px) { .phase { grid-template-columns: 1fr; gap: .3rem; } }
+</style>
+
+<nav class="top" aria-label="Pages"><div>
+  <b>Deterministic Jev</b>
+  <a href="#story" data-page="story">Story</a>
+  <a href="#evidence" data-page="evidence">Evidence</a>
+  <a href="#how" data-page="how">How it works</a>
+  <a href="#roadmap" data-page="roadmap">Roadmap</a>
+</div></nav>
+<main>
+<div class="page" id="page-story">
+<header>
+  <p class="eyebrow">Open System One decisions · SGLang · one H100</p>
+  <h1>Deterministic Jev</h1>
+  <p class="deck">Jev turns text into typed decisions in a tenth of a second. Ask it the same question twice and it can answer differently. Deterministic Jev is an open server that speaks the same API and gives the same answer every time.</p>
+</header>
+
+<section>
+  <h2>Same question, fifteen calls</h2>
+  <p>We took the insurance claim from TypeSafe's own consistency cookbook and asked “is this claim covered?” fifteen times. Every request was byte-for-byte identical.</p>
+  <figure class="wide">
+    <div class="panel strip" id="story-strip"></div>
+    <figcaption id="story-caption"></figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>A guard you cannot retry past</h2>
+  <p>A guardrail decides whether a message reaches your model. We ran TypeSafe's guardrail cookbook unchanged on 2,236 messages from four public safety test sets. Each message was sent byte for byte 10 times to hosted Jev and 5 times to Deterministic Jev.</p>
+  <figure class="wide">
+    <div class="panel strip" id="guard-strip"></div>
+    <figcaption id="guard-caption"></figcaption>
+  </figure>
+  <p id="guard-summary"></p>
+  <p>Consistent is not the same as right. Our model lets TypeSafe's own “Neurosemantical Inversitis” jailbreak through every time. Hosted Jev catches it but switches between review and block from call to call. A miss that repeats can at least be caught by a test and fixed. <a class="more" href="#evidence">Guardrail results in full →</a></p>
+</section>
+
+<section>
+  <h2>Why a decision should repeat</h2>
+  <div class="why3 wide">
+    <div><h3>Replay it</h3><p>When a claim is routed wrongly, rerun the logged request and get the same number. You debug the input, not the noise.</p></div>
+    <div><h3>Test it like code</h3><p>A snapshot test can assert the exact probability. No tolerance bands, no flaky reruns, and any model or prompt change shows up as a diff.</p></div>
+    <div><h3>Audit it later</h3><p>A reviewer can re-derive a moderation, lending or claims decision months later from the log and a fingerprint.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>What it took, and what it cost</h2>
+  <div class="tiles wide">
+    <div class="tile"><span class="v">720 / 720</span><span class="k">repeats identical to the last bit while other traffic shares the GPU</span></div>
+    <div class="tile"><span class="v">324 / 324</span><span class="k">recorded decisions reproduced after a restart and on a second GPU</span></div>
+    <div class="tile"><span class="v">282 = 282</span><span class="k">correct answers out of 324, with determinism on and off</span></div>
+    <div class="tile"><span class="v">51 ms</span><span class="k">median decision, against 50 ms without determinism</span></div>
+  </div>
+  <p>Deterministic inference in SGLang did most of the work. It was not enough for the hybrid model we serve: a cached state from the middle of a prompt made answers depend on traffic. Two small patches fixed that. <a class="more" href="#how">How it works →</a></p>
+  <p><a class="more" href="#evidence">All experiments and numbers →</a></p>
+</section>
+
+<section>
+  <h2>What comes next</h2>
+  <p>Deterministic Jev is meant to grow into an open home for decisions that must repeat: guardrails, grounding checks, judges and regulated decisions, each tested with established benchmarks and a replay test. <a class="more" href="#roadmap">Roadmap and use cases →</a></p>
+</section>
+</div>
+
+<div class="page" id="page-evidence" hidden>
+<header class="page-head"><p class="eyebrow">Evidence</p><h2>Every claim, with the run behind it</h2><p class="deck">Measured on 2026-09-28 with Bespoke-Nimble-9B on SGLang 0.5.19, one H100 NVL.</p></header>
+<section>
+  <h2>Guardrail suite</h2>
+  <p>TypeSafe's “Guardrails for LLMs” battery (four hazard questions and a severity score) and its <code>strict</code> routing, applied to XSTest, ToxicChat, in-the-wild jailbreaks and JailbreakBench behaviors. A message counts as flagged when it is not passed. Hosted Jev got 10 identical calls per message, the local servers 5, all at up to 32 concurrent requests.</p>
+  <div class="scroll"><table id="gr-main"></table></div>
+  <p class="note">“Leaks on some calls” counts unsafe messages that were passed on at least one call and stopped on another. For those, resending the same text is enough to get through. Latency is the median for one guard call at a time. One H100 serves about 20 guard calls per second at most, while hosted Jev handled 51 per second at 8 concurrent calls without slowing.</p>
+  <div class="scroll"><table id="gr-src"></table></div>
+  <div class="scroll"><table id="gr-ex"></table></div>
+  <p class="note">Labels come from each dataset. ToxicChat marks toxic content broadly, so every guard's recall on it is low. Hosted Jev is a different, larger model, and these differences in detection are specific to this suite and this policy.</p>
+</section>
+
+<section>
+  <h2>TypeSafe's self-consistency check, three servers</h2>
+  <p>The two consistency cookbooks, each run 15 times per condition: identical bytes or a fresh <code>uid</code>, one call after another or all at once.</p>
+  <div class="scroll"><table id="cons"></table></div>
+</section>
+
+<section>
+  <h2>Hosted Jev on byte-identical requests</h2>
+  <p>TypeSafe's cookbooks added a fresh <code>uid</code> to each call, so their spread could have come from that field. We repeated their two requests with no <code>uid</code> change, using a TypeSafe API key, first one after another and then as a concurrent burst.</p>
+  <div class="scroll"><table id="hosted"></table></div>
+  <p id="hosted-text"></p>
+</section>
+
+<section>
+  <h2>Under load, every repeat</h2>
+  <p>The same 24 requests, each sent 30 times while other tenants share the GPU. Stock serving on the left, Deterministic Jev on the right.</p>
+  <figure class="wide">
+    <div class="pair">
+      <div class="panel">
+        <div class="panel-title"><h3>Stock serving</h3><span class="count" id="wall-off-count"></span></div>
+        <div id="wall-off"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><h3>Deterministic Jev</h3><span class="count" id="wall-on-count"></span></div>
+        <div id="wall-on"></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--on)"></i>bit-identical to the reference answer</span>
+      <span><i class="sw" style="background:var(--off)"></i>different bits</span>
+    </div>
+    <figcaption><b>Every cell is one repeat of one request.</b> 24 real decision requests (rows), each sent 30 times (columns) while 0, 8 or 32 other tenants share the GPU. Each answer is compared with that request's reference, taken alone on an idle, freshly flushed server. Hover a cell for the probability it returned.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>What “the same answer” means here</h2>
+  <p>Stock serving usually picks the same option. The probabilities under it wobble, and a threshold near the wobble eventually gets crossed. Below is one real request from the test set, sent 30 times to each server. Every distinct float64 that came back is listed with its bit pattern.</p>
+  <figure class="wide">
+    <div class="pair">
+      <div class="panel"><div class="panel-title"><h3>Stock serving</h3><span class="count" id="bits-off-count"></span></div><div class="receipt" id="bits-off"></div></div>
+      <div class="panel"><div class="panel-title"><h3>Deterministic Jev</h3><span class="count" id="bits-on-count"></span></div><div class="receipt on" id="bits-on"></div></div>
+    </div>
+    <figcaption id="bits-caption"></figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>TypeSafe's own consistency test, replayed</h2>
+  <p>We sent TypeSafe's exact cookbook request (one auto-insurance claim, 14 yes/no questions, 15 calls in a row) to our server. Their protocol adds a fresh random <code>uid</code> to the state on every call, so their spread mixes run-to-run noise with sensitivity to that field. We ran it both ways.</p>
+  <figure class="wide">
+    <div class="pair">
+      <div class="panel">
+        <div class="panel-title"><h3>With a fresh uid per call</h3><span class="count">TypeSafe's protocol</span></div>
+        <div id="cb-uid"></div>
+        <div class="legend"><span><i class="sw dot" style="background:var(--jev)"></i>Jev 1.13, published</span><span><i class="sw dot" style="background:var(--on)"></i>Deterministic Jev</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><h3>Byte-identical requests, busy GPU</h3><span class="count">isolates run-to-run noise</span></div>
+        <div id="cb-same"></div>
+        <div class="legend"><span><i class="sw dot" style="background:var(--off)"></i>Stock serving</span><span><i class="sw dot" style="background:var(--on)"></i>Deterministic Jev</span></div>
+      </div>
+    </div>
+    <figcaption><b>Each dot is one call</b>, drawn as its distance from that question's median answer. A ⇄ marks a question whose yes/no decision changed between calls. Jev's values were transcribed from the cookbook figures at two decimals. The two models answer the claim differently (ours says <code>covered</code> ≈ 0.91), so this compares stability, not correctness.</figcaption>
+  </figure>
+  <p>On byte-identical requests, stock serving produced a mean per-question spread of <span class="mono" id="cb-off-std"></span> and flipped <code>fraud_flag</code> between yes and no on a busy GPU. Deterministic Jev's spread was exactly zero. With the uid protocol our spread (<span class="mono" id="cb-on-uid-std"></span>) is close to Jev's published 0.0102, and <code>fraud_flag</code> still flips. Determinism freezes the output for a given input. It does not make the model ignore a field it should ignore.</p>
+</section>
+
+<section>
+  <h2>Nothing else moved</h2>
+  <p>Batch-invariant kernels change the arithmetic, so we reran the full 324-request held-out set from Nimble's release with determinism on and off. Every decision matched.</p>
+  <div class="scroll"><table id="quality"></table></div>
+  <p class="note">These runs used the first build. The final build reproduces all 324 answers bit for bit (see Receipts). Bespoke reports 90.1% for the original Nimble checkpoint and 93.2% for Jev 1.13 on this set. The current checkpoint, served at its default temperature of 1.0, scores 87.0% on both of our servers. Our goal is determinism, not a better model.</p>
+</section>
+
+<section>
+  <h2>What it costs</h2>
+  <p>On fresh requests, determinism costs almost nothing on this workload. A Jev call is one short prefill and a single token read, so the batch-invariant kernels barely register. Every level below uses requests the server has not seen, with the cache flushed first.</p>
+  <figure class="wide">
+    <div class="pair">
+      <div class="panel"><div class="panel-title"><h3>Median latency</h3><span class="count">ms per decision</span></div><div id="lat"></div></div>
+      <div class="panel"><div class="panel-title"><h3>Throughput</h3><span class="count">decisions per second</span></div><div id="thr"></div></div>
+    </div>
+    <div class="legend" id="cost-legend"></div>
+    <figcaption><b>Fresh requests only.</b> Closed-loop load, one question per request, 80 different requests per level, cache flushed before each level, one H100 NVL. “Stock, same flow” skips the shared-prefix warm-up for single-question requests, as Deterministic Jev does, so the gap between it and Deterministic Jev is the cost of determinism alone.</figcaption>
+  </figure>
+  <div class="scroll"><table id="ablation"></table></div>
+  <p>The upstream flow sends a separate warm-up call before each question, which costs a round trip. Deterministic Jev skips it when there is only one question, and that accounts for the gap with stock serving. With the same flow, the two servers are within a millisecond and within 1% of each other.</p>
+  <p>Determinism does give up one thing. The patch only keeps exact state checkpoints, so the engine can no longer reuse part of a cached prompt when the exact same request comes back. Because answers are a pure function of the request bytes, the server can instead memoize whole responses, which is not safe on a nondeterministic server. With <code>--memo</code>, exact repeats return in 61 ms at 344 decisions per second. An earlier benchmark that replayed the same requests at every level had shown stock serving at 111 decisions per second, and that figure came from exactly this kind of cache reuse.</p>
+</section>
+
+<section>
+  <h2>What determinism does not fix</h2>
+  <p>Bit-for-bit reproducibility applies to identical bytes. We sent each of the 324 held-out requests in variants that mean the same thing and counted decision flips.</p>
+  <div class="scroll"><table id="invariance"></table></div>
+  <p>Key order inside <code>state</code> changed 19 decisions, because the model reads the serialized JSON. Our <code>--canonicalize</code> option sorts keys before prompting, and that brings it to zero. Option order and a nuisance <code>uid</code> are changes to content the model sees. Fixing those takes training or symmetrized prompting, which is on the roadmap below.</p>
+</section>
+</div>
+
+<div class="page" id="page-how" hidden>
+<header class="page-head"><p class="eyebrow">How it works</p><h2>From a deterministic flag to a deterministic answer</h2></header>
+<section>
+  <h2>A decision you can replay</h2>
+  <p>TypeSafe built Jev as a fast decision function for software. You give it a state and typed questions, and it returns probabilities in about a tenth of a second instead of a generated paragraph.</p>
+  <blockquote>“Think of Jev as a frontier-intelligence function call: unstructured state in, typed probabilistic decisions out.”<cite>typesafe.ai · Introducing System One Models and Jev</cite></blockquote>
+  <p>Their pitch is software-like reliability: calibrated probabilities, answers that always match the schema, and “smart if-statements” inside ordinary code paths. An if-statement has one more property that engineers take for granted. Run it twice on the same input and it takes the same branch. TypeSafe measured this for Jev and says so directly:</p>
+  <blockquote>“This policy does not make the model deterministic.”<cite>docs.typesafe.ai · consistency cookbooks</cite></blockquote>
+  <p>In their insurance-claim cookbook, the <code>covered</code> question returned between 0.43 and 0.53 across 15 calls, on both sides of a 0.5 threshold. That is fine for a demo and awkward for claims processing, snapshot tests or an audit trail. Deterministic Jev closes that gap for self-hosted serving. For a fixed deployment, identical request bytes give identical probability bits.</p>
+</section>
+
+<section>
+  <h2>Why the deterministic flag was not enough</h2>
+  <p>SGLang ships <code>--enable-deterministic-inference</code>, which swaps in batch-invariant kernels so a request's numbers do not depend on what else is in the batch. We checked it at the engine level, reading the label log-probabilities a Jev server consumes, with up to 64 background tenants mixing prefill and decode.</p>
+  <figure class="wide">
+    <div class="panel"><div id="ladder"></div></div>
+    <figcaption><b>Share of repeats bit-identical to the solo reference</b>, 300 repeats per configuration (6 targets × 5 load levels × 10 trials, alternating cold and warm cache). Qwen3-8B is a plain transformer; Nimble-9B is built on Qwen3.5, which mixes attention with Gated DeltaNet linear-attention layers.</figcaption>
+  </figure>
+  <p>The flag works on the plain transformer. On the hybrid model it left 22 of 300 repeats drifting, and neither of the obvious knobs (the triton backend, aligned prefill splits) removed it. A pair probe narrowed it down. Batching the target with any companion was harmless (56 of 56 identical). All 8 failures in 84 cases were requests that resumed from their own cached prefix of 100, 152, 200 or 252 tokens. A resume at 64 tokens was exact.</p>
+  <figure class="wide">
+    <div class="panel scroll"><div id="diagram" style="min-width:560px"></div></div>
+    <figcaption><b>The cause.</b> Gated DeltaNet carries a recurrent state computed in 64-token chunks. When SGLang caches that state partway through a prompt, it copies it from the chunk kernel's intermediate buffer, which is stored at lower precision than the fp32 final state. A request that resumes from that copy computes slightly different numbers from one that recomputes the prefix. Whether a resume happens depends on what the cache holds at that moment, so the answer depends on traffic.</figcaption>
+  </figure>
+  <p>The fix has three parts. A ten-line SGLang patch keeps deterministic mode from saving a state checkpoint unless the prefill ends exactly on the 64-token grid, where the state is the exact fp32 final state. A second small patch aligns chunked-prefill splits to the same grid, so a long prompt split under load resumes on a boundary too. Without it, a build that prefilled whole requests in one pass drifted on 20 of 720 repeats. Our server then trims the shared-state warm-up for multi-question requests to a multiple of 64 tokens, so every question branch resumes from an exact checkpoint. After the fix: 300 of 300 at the engine level, 84 of 84 in the pair probe, and 720 of 720 through the API.</p>
+</section>
+
+<section>
+  <h2>Receipts</h2>
+  <p>Every response carries an <code>x-detjev-fingerprint</code> header, a hash of everything that can change the bits: weight files, prompt compiler, SGLang version and numeric flags, GPU model and temperature. Same fingerprint and same request bytes give the same answer. We recorded all 324 held-out decisions as a golden file with the first build, then replayed it. The final build answers single-question requests in one pass instead of resuming from a cached warm-up, and it still matches the recorded file bit for bit.</p>
+  <div class="scroll"><table id="golden"></table></div>
+  <pre id="fp"></pre>
+</section>
+
+<section>
+  <h2>Method and reproduction</h2>
+  <ul class="plain">
+    <li><b>Server:</b> ekzhang/openjev-sglang (Jev wire API, one-token label readout) with Bespoke-Nimble-9B's trained prompt compiler, SGLang 0.5.19, fa3 attention, radix cache on, BF16, one H100 NVL.</li>
+    <li><b>Patches:</b> three small SGLang patches in <code>patches/</code>: mamba checkpoints on the grid in deterministic mode, fa3 split alignment (<code>SGLANG_FA3_PREFILL_TRUNCATION_ALIGN_SIZE=64</code>), and a fix for the mixed-logprob batch crash (sglang#34719).</li>
+    <li><b>Server options:</b> <code>--canonicalize</code> sorts <code>state</code> keys; <code>--memo N</code> keeps an exact response memo of N entries.</li>
+    <li><b>Data:</b> Nimble's 324 held-out Jev-format requests (146 choice, 114 yes/no, 64 score) and TypeSafe's two cookbook requests rebuilt from their docs.</li>
+    <li><b>Comparisons with hosted Jev</b> use TypeSafe's published cookbook numbers only. We did not call the Jev API.</li>
+  </ul>
+<pre>scripts/run_e0.sh        # engine probe: dense vs hybrid, deterministic off/on
+scripts/run_e3b.sh       # patched hybrid: pair probe + engine probe
+scripts/run_main.sh      # API: drift (E1/E2), quality (E5), cookbook (E8), latency (E4)
+scripts/run_follow.sh    # golden suite across restart and GPU, invariance (E6/E7)
+scripts/run_final.sh     # final build: drift, golden, cookbook, fair latency with and without memo</pre>
+</section>
+</div>
+
+<div class="page" id="page-roadmap" hidden>
+<header class="page-head"><p class="eyebrow">Roadmap</p><h2>An open home for decisions that must repeat</h2></header>
+<section>
+  <h2>Candidate flagship use cases</h2>
+  <p>Each candidate plays to what Jev is built for (fast, typed judgments inside code), needs the same answer every time for a concrete reason, and has an established test set so results can be compared with published work. Proposals under discussion.</p>
+  <div class="scroll wide"><table class="opt">
+    <thead><tr><th>Use case</th><th>Why Jev fits</th><th>Why it must repeat</th><th>Established tests</th><th>Proof we would run</th></tr></thead>
+    <tbody>
+      <tr class="hl"><td>Guardrails and jailbreak screening <span class="tag on">chosen · v0.2</span></td><td>TypeSafe's “Guardrails for LLMs” cookbook: one call screens a message against several hazards</td><td>A guard that passes a jailbreak 10% of the time lets it through in 65% of attackers' ten retries. Incident review needs the verdict to replay</td><td>WildGuardTest, XSTest, JailbreakBench, HarmBench classifier set, AgentDojo for injected tool output</td><td>Chance a harmful prompt gets through within k retries, hosted vs deterministic, plus F1 and over-refusal</td></tr>
+      <tr><td>Grounding and citation checks</td><td>“Double-checking citations” and “Classifying RAG passages” cookbooks: a yes/no on whether a source supports a claim</td><td>Groundedness gates run in CI before a RAG release. A flaky gate blocks or passes builds at random</td><td>LLM-AggreFact, RAGTruth</td><td>Balanced accuracy against MiniCheck-class checkers, and the flake rate of a CI gate run 100 times</td></tr>
+      <tr><td>LLM judges for evaluation</td><td>Score primitive: graded judgments with probabilities, at a fraction of a reasoning judge's cost</td><td>If the judge changes its mind, a regression and a rerun look the same, and leaderboards reshuffle</td><td>RewardBench, JudgeBench, MT-Bench human judgments</td><td>Agreement with human labels, and rank stability of a leaderboard across five reruns</td></tr>
+      <tr><td>Agent routing and tool choice</td><td>“Function calling”, “Skill suggestion” and “Intent routing” cookbooks</td><td>An agent failure has to replay down the same branch to be debugged. τ-bench's pass^k exists because agents are unreliable across repeats</td><td>BFCL relevance and function selection, τ-bench policy checks, CLINC150 and Banking77 with out-of-scope</td><td>Branch divergence when replaying the same trajectories, and pass^k with a deterministic router</td></tr>
+      <tr><td>Rule-based decisions in regulated work</td><td>Both consistency cookbooks: applying a stated policy to a claim or a post</td><td>Like cases should get like outcomes, and moderation and high-risk AI rules expect reasons and logs that can be checked later</td><td>LegalBench rule-application tasks, HateCheck functional tests, the 324 held-out policy cases used here</td><td>Exact audit replay after months, and outcome consistency on paired near-identical cases</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>The repository</h2>
+  <p>One open repository that others can run, extend and cite: a deterministic Jev-compatible server, a replay test kit that works against any System One backend including hosted Jev, and a growing set of use-case suites with published result cards.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Part</th><th>What it holds</th></tr></thead>
+    <tbody>
+      <tr><td><code>server/</code></td><td>Deterministic Jev: the <code>/v1/systemone</code> API, fingerprint header, canonicalization, exact response memo, decision receipts</td></tr>
+      <tr><td><code>patches/</code></td><td>Engine patches, each with a regression test and its upstream status</td></tr>
+      <tr><td><code>replaykit/</code></td><td>Backend-agnostic tests: identical-bytes replay, drift under load, restart and cross-GPU golden files, invariance, retry attack</td></tr>
+      <tr><td><code>tasks/</code></td><td>One folder per use case: a card (why it must repeat, source, license), an adapter to Jev requests, gold labels, metrics</td></tr>
+      <tr><td><code>results/</code></td><td>Versioned result cards keyed by backend and fingerprint, with the raw JSON behind every number</td></tr>
+      <tr><td><code>spec/</code></td><td>The determinism contract: what goes into a fingerprint, the receipt format, canonicalization rules, so any server can claim and prove compliance</td></tr>
+    </tbody>
+  </table></div>
+  <p>Every result card reports the same columns: accuracy, calibration (Brier, ECE), replay rate, decision flips on identical bytes, retry-attack pass rate, invariance flips, latency and cost. Contributors can add a task, a backend, a model or an engine fix. CPU tests run on every pull request, and GPU replay runs attach their fingerprint and raw output.</p>
+  <div class="wide">
+    <div class="phase"><span class="when">v0.1 · now</span><div><h3>Reference and evidence</h3><ul><li>Server, patches, replay kit, cookbook replays, hosted Jev comparison, this site.</li></ul></div></div>
+    <div class="phase"><span class="when">v0.2 · in progress</span><div><h3>Flagship suite: guardrails</h3><ul><li>Done: 2,236 messages from four test sets, TypeSafe's battery verbatim, result cards for hosted Jev, stock serving and Deterministic Jev, and the self-consistency cookbooks on all three.</li><li>Next: WildGuardTest and XSTest responses once access is granted, the output-side battery, and open guard models (Llama Guard, WildGuard) as baselines.</li><li>Receipts and fingerprints that include patched engine sources.</li></ul></div></div>
+    <div class="phase"><span class="when">v0.3</span><div><h3>Community</h3><ul><li>Three more suites, a contributor guide and task-card template, CI, and the SGLang patch proposed upstream.</li></ul></div></div>
+    <div class="phase"><span class="when">v1.0</span><div><h3>Standard</h3><ul><li>The determinism spec with a compliance test, a public result board, determinism across GPU models, and a deterministic MoE model.</li></ul></div></div>
+  </div>
+  <p class="note">Before publishing hosted-Jev measurements or using Jev outputs for anything beyond evaluation, check TypeSafe's terms. Dataset adapters should download data from its source rather than redistribute it.</p>
+</section>
+
+<section>
+  <h2>Proofs of concept</h2>
+  <ol class="steps">
+    <li><b>Retry attack.</b> Take borderline prompts from a jailbreak set and measure how often each gets past the guard within k identical retries. A deterministic guard gives the same verdict every time.</li>
+    <li><b>Flaky test suite.</b> Write 50 snapshot tests over real decisions and run the suite 100 times against each backend. Report the share of runs with any failure.</li>
+    <li><b>Audit replay.</b> Log a week of decisions with receipts, then replay them after a restart, on another GPU and a month later. Report exact matches.</li>
+    <li><b>Memo economics.</b> Run a deduplication-heavy batch job (support tickets, product listings) with the exact response memo and report cost per million decisions.</li>
+    <li><b>Leaderboard stability.</b> Rank ten models with a Score-based judge five times and count rank changes.</li>
+    <li><b>Drop-in swap.</b> Point an app built on TypeSafe's SDK at Deterministic Jev by changing the base URL, and compare decisions, latency and cost with hosted Jev.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Where this creates value</h2>
+  <p>TypeSafe positions System One as the fast layer of software automation: routing, triage, moderation, guards and verification, called from ordinary code. Each of those gets something concrete from a replayable decision.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Need</th><th>What determinism gives it</th></tr></thead>
+    <tbody>
+      <tr><td>Debugging a bad route or triage</td><td>Replay the logged request and get the same probability, so the investigation is about the input, not sampler noise.</td></tr>
+      <tr><td>Tests for smart if-statements</td><td>Snapshot tests assert exact probabilities with no tolerance bands and no flaky reruns. A prompt or model change shows up as an exact diff.</td></tr>
+      <tr><td>Audit and regulated decisions</td><td>Claims, lending, moderation appeals: a reviewer can re-derive the exact score from logged state and fingerprint.</td></tr>
+      <tr><td>Map-reduce over large data</td><td><code>hash(request, fingerprint)</code> is a correct cache key, so jobs can dedupe inputs and resume after a crash without drift.</td></tr>
+      <tr><td>A/B tests and migrations</td><td>Differences between arms come from the change being tested, not from 0.01-level jitter. No need for 15 repeats per condition.</td></tr>
+      <tr><td>Agent loops</td><td>Tool choice, escalation and routing take the same branch on replay, so agent failures reproduce.</td></tr>
+      <tr><td>Privacy and control</td><td>Self-hosted on one GPU: state never leaves the building, and no rate limit or alias changes without notice.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</div>
+</main>
+<div id="tip" hidden></div>
+
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+const D = JSON.parse(document.getElementById("data").textContent);
+const NS = "http://www.w3.org/2000/svg";
+const tip = document.getElementById("tip");
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function svgRoot(w, h, host) {
+  const s = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" });
+  host.appendChild(s);
+  return s;
+}
+function hover(node, html) {
+  node.addEventListener("pointermove", ev => {
+    tip.innerHTML = html(); tip.hidden = false;
+    const x = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8);
+    const y = Math.min(ev.clientY + 14, innerHeight - tip.offsetHeight - 8);
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  });
+  node.addEventListener("pointerleave", () => { tip.hidden = true; });
+}
+const fmt = (x, d = 4) => Number(x).toFixed(d);
+const pct = (a, b) => (100 * a / b).toFixed(1) + "%";
+
+
+/* 0. pages */
+function showPage() {
+  const name = (location.hash || "#story").slice(1).split("/")[0];
+  const page = document.getElementById("page-" + name) ? name : "story";
+  document.querySelectorAll(".page").forEach(p => { p.hidden = p.id !== "page-" + page; });
+  document.querySelectorAll("nav.top a").forEach(a => {
+    if (a.dataset.page === page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  });
+}
+addEventListener("hashchange", () => { showPage(); scrollTo(0, 0); });
+showPage();
+
+/* story strip: hosted Jev vs Deterministic Jev, TypeSafe's `covered` question, identical bytes */
+(function storyStrip() {
+  const host = document.getElementById("story-strip");
+  if (!D.hosted) return;
+  const jev = D.hosted.cookbook.noul.sequential.questions.covered.p;
+  const ours = D.cookbook.on.find(r => r.kind === "noul" && r.condition === "busy" && r.protocol === "identical").questions.covered.p;
+  const lane = (who, sub, ps, c, w) => {
+    const yes = ps.filter(p => p >= .5).length;
+    return `<div class="lane"><div class="who">${who}<small>${sub} · ${yes} yes, ${ps.length - yes} no</small></div><div class="calls">` +
+      ps.map(p => `<div class="call ${p >= .5 ? "yes" : ""}" style="--c:${c};--w:${w}"><b>${p >= .5 ? "YES" : "NO"}</b>${p.toFixed(2)}</div>`).join("") + "</div></div>";
+  };
+  host.innerHTML = lane("Hosted Jev", "jev-1.13.0", jev, "var(--jev)", "rgba(27,175,122,.14)") +
+    lane("Deterministic Jev", "Nimble-9B", ours, "var(--on)", "var(--on-wash)");
+  document.getElementById("story-caption").innerHTML = "<b>Each box is one call.</b> Filled boxes answered yes. Hosted Jev was called on 2026-09-28 with the exact bytes each time, one call after another. " +
+    "The two models read this claim differently. Ours says covered with 0.91, and we make no claim about which is right. The difference shown is that one of them changes its answer. " +
+    `Probabilities are shown to two decimals, the precision the Jev API returns. <a href="#evidence">Full comparison →</a>`;
+})();
+
+/* hosted Jev table */
+(function hostedTable() {
+  if (!D.hosted) return;
+  const h = D.hosted, t = document.getElementById("hosted");
+  const ours = kind => D.cookbook.on.find(r => r.kind === kind && r.condition === "busy" && r.protocol === "identical");
+  const flipText = (kind, m) => m.flipping.map(q => {
+    const c = {}; m.questions[q].labels.forEach(l => { c[l] = (c[l] || 0) + 1; });
+    return `<code>${q}</code> ${Object.entries(c).map(([k, v]) => `${k} ${v}`).join(" / ")}`;
+  }).join("<br>") || "none";
+  const rows = [];
+  for (const kind of ["noul", "choice"]) for (const mode of ["sequential", "concurrent"]) {
+    const m = h.cookbook[kind][mode];
+    rows.push(`<tr><td>${kind === "noul" ? "Insurance claim, 14 yes/no" : "Moderation post, 8 choices"}</td><td>Hosted Jev, ${mode}</td><td class="num">${m.distinct} / ${m.n}</td><td class="num">${fmt(m.mean_std, 4)}</td><td>${flipText(kind, m)}</td></tr>`);
+  }
+  for (const kind of ["noul", "choice"]) {
+    const o = ours(kind);
+    rows.push(`<tr class="hl"><td>${kind === "noul" ? "Insurance claim, 14 yes/no" : "Moderation post, 8 choices"}</td><td>Deterministic Jev, busy GPU</td><td class="num">1 / 15</td><td class="num">${fmt(o.mean_std, 4)}</td><td>none</td></tr>`);
+  }
+  t.innerHTML = `<thead><tr><th>Request</th><th>Server</th><th class="num">distinct answers</th><th class="num">mean spread (std)</th><th>decisions that changed</th></tr></thead><tbody>${rows.join("")}</tbody>`;
+  const flips = h.drift.filter(x => x.flip).length, maxSpread = Math.max(...h.drift.map(x => x.spread));
+  const always = h.drift.filter(x => x.distinct === 1).length;
+  document.getElementById("hosted-text").innerHTML =
+    `Every one of the 60 cookbook calls returned a different set of answers. The spread matches TypeSafe's published figure with the <code>uid</code> protocol (0.0102 for the claim), so their variation is run-to-run noise and not sensitivity to that field. ` +
+    `On the 24 held-out requests used above, each sent 10 times, ${always} of 24 always returned the same answer, ${flips} changed their decision, and the widest spread on a single request was ${maxSpread.toFixed(2)}. The median call took ${Math.round(h.cookbook.noul.sequential.p50_ms)} ms.`;
+})();
+
+
+/* guardrails */
+const GNAMES = { "hosted-jev": "Hosted Jev 1.13", "stock-nimble": "Stock serving", "detjev": "Deterministic Jev" };
+function chips(host, ex, caption) {
+  const lane = (n, c, w) => {
+    const calls = ex.calls[n];
+    return `<div class="lane"><div class="who">${GNAMES[n]}<small>${calls.length} identical calls</small></div><div class="calls" style="grid-template-columns:repeat(10,minmax(0,1fr))">` +
+      calls.map(x => `<div class="call ${x.action === "pass" ? "yes" : ""}" style="--c:${c};--w:var(--off-wash)"><b>${x.action.toUpperCase()}</b>${x.nouls.harmful_request.toFixed(2)}</div>`).join("") + "</div></div>";
+  };
+  host.innerHTML = lane("hosted-jev", "var(--jev)") + lane("detjev", "var(--on)");
+  caption.innerHTML = `<b>“${ex.text}”</b> (XSTest, labelled unsafe). Each box is one call and its action under the cookbook's strict policy. The number is the harmful-request probability. A passed box means the message reached the model.`;
+}
+(function guard() {
+  const G = D.guardrails; if (!G) return;
+  const ex = G.examples[0];
+  chips(document.getElementById("guard-strip"), ex, document.getElementById("guard-caption"));
+  const c = n => G.cards[n].strict;
+  const h = c("hosted-jev"), d = c("detjev");
+  const pct1 = x => (100 * x).toFixed(0) + "%";
+  const hp = ex.calls["hosted-jev"].filter(x => x.action === "pass").length / ex.calls["hosted-jev"].length;
+  document.getElementById("guard-summary").innerHTML =
+    `On this message a retrying attacker gets past hosted Jev within three tries ${pct1(1 - (1 - hp) ** 3)} of the time. Across the whole suite, hosted Jev changed its action between identical calls on ${h.consistency.action_flips} messages, and ${h.retry_attack.leaky_items} unsafe messages got through on some calls but not others. Deterministic Jev changed nothing: ${d.consistency.action_flips} and ${d.retry_attack.leaky_items}. It also caught ${pct1(d.detection.all.per_run_mean.recall)} of unsafe messages against ${pct1(h.detection.all.per_run_mean.recall)}, with the same false-alarm rate of about ${pct1(d.detection.all.per_run_mean.fpr)}.`;
+
+  const lat = n => G.latency[n] ? G.latency[n][0].p50_ms.toFixed(0) + " ms" : "–";
+  const rows = ["hosted-jev", "stock-nimble", "detjev"].map(n => {
+    const x = c(n), m = x.detection.all.per_run_mean, cons = x.consistency, r = x.retry_attack;
+    return `<tr${n === "detjev" ? ' class="hl"' : ""}><td>${GNAMES[n]}</td><td class="num">${pct1(m.recall)}</td><td class="num">${pct1(m.fpr)}</td><td class="num">${m.f1.toFixed(3)}</td>` +
+      `<td class="num">${(100 * cons.identical_rate).toFixed(1)}%</td><td class="num">${cons.action_flips}</td><td class="num">${r.leaky_items} / ${r.unsafe_items}</td><td class="num">${lat(n)}</td></tr>`;
+  });
+  document.getElementById("gr-main").innerHTML = `<thead><tr><th>${G.items} messages, strict policy</th><th class="num">unsafe caught</th><th class="num">safe flagged</th><th class="num">F1</th><th class="num">bit-identical repeats</th><th class="num">action changed</th><th class="num">leaks on some calls</th><th class="num">latency</th></tr></thead><tbody>${rows.join("")}</tbody>`;
+
+  const srcs = ["xstest", "toxicchat", "in_the_wild", "jbb"], sname = { xstest: "XSTest", toxicchat: "ToxicChat", in_the_wild: "In-the-wild jailbreaks", jbb: "JailbreakBench" };
+  document.getElementById("gr-src").innerHTML = `<thead><tr><th>F1 by test set (caught / flagged-safe)</th>${["hosted-jev", "stock-nimble", "detjev"].map(n => `<th class="num">${GNAMES[n]}</th>`).join("")}<th class="num">action changes, hosted</th></tr></thead><tbody>` +
+    srcs.map(sc => `<tr><td>${sname[sc]}</td>${["hosted-jev", "stock-nimble", "detjev"].map(n => { const m = c(n).detection[sc].per_run_mean; return `<td class="num">${m.f1.toFixed(2)} <span class="note">(${pct1(m.recall)} / ${pct1(m.fpr)})</span></td>`; }).join("")}<td class="num">${c("hosted-jev").consistency.by_source[sc]}</td></tr>`).join("") + "</tbody>";
+
+  const seq = (e, n) => e.calls[n].map(x => x.action).join(" · ");
+  document.getElementById("gr-ex").innerHTML = `<thead><tr><th>Message</th><th>Hosted Jev, 10 calls</th><th>Deterministic Jev, 5 calls</th></tr></thead><tbody>` +
+    G.examples.map(e => `<tr><td>${e.text.slice(0, 110)}${e.text.length > 110 ? "…" : ""} <span class="note">(${e.source}, ${e.unsafe ? "unsafe" : "safe"})</span></td><td class="mono">${seq(e, "hosted-jev")}</td><td class="mono">${seq(e, "detjev")}</td></tr>`).join("") + "</tbody>";
+})();
+(function consistencyTable() {
+  const C = D.consistency; if (!C) return;
+  const conds = [["noul", "identical", "sequential"], ["noul", "identical", "concurrent"], ["noul", "uid", "sequential"], ["choice", "identical", "sequential"], ["choice", "identical", "concurrent"], ["choice", "uid", "sequential"]];
+  const label = ([k, p, m]) => `${k === "noul" ? "Claim, 14 yes/no" : "Moderation, 8 choices"} · ${p === "uid" ? "fresh uid" : "identical bytes"} · ${m}`;
+  const cell = (n, cd) => { const x = C[n].find(c => c.kind === cd[0] && c.protocol === cd[1] && c.mode === cd[2]); return x ? `${x.distinct_answer_sets}/${x.n}${x.flipping.length ? ` <span class="note">${x.flipping.join(", ")}</span>` : ""}` : "–"; };
+  document.getElementById("cons").innerHTML = `<thead><tr><th>Condition (distinct answer sets of 15, questions that changed)</th>${["hosted-jev", "stock-nimble", "detjev"].map(n => `<th>${GNAMES[n]}</th>`).join("")}</tr></thead><tbody>` +
+    conds.map(cd => `<tr><td>${label(cd)}</td>${["hosted-jev", "stock-nimble", "detjev"].map(n => `<td class="mono">${cell(n, cd)}</td>`).join("")}</tr>`).join("") + "</tbody>";
+})();
+
+/* 1. hash wall */
+function wall(key, host, countEl) {
+  const dr = D.drift[key], ids = dr.ids, loads = [0, 8, 32];
+  const cell = 14, gap = 2, groupGap = 10, top = 22;
+  const cols = loads.length * 10;
+  const w = cols * (cell + gap) + (loads.length - 1) * groupGap, h = top + ids.length * (cell + gap);
+  const s = svgRoot(w, h, host);
+  const idx = Object.fromEntries(ids.map((id, i) => [id, i]));
+  loads.forEach((ld, g) => {
+    const x0 = g * (10 * (cell + gap) + groupGap);
+    el("text", { x: x0, y: 12 }, s).textContent = ld === 0 ? "idle" : `${ld} tenants`;
+  });
+  for (const r of dr.rows) {
+    const g = loads.indexOf(r.load);
+    const x = g * (10 * (cell + gap) + groupGap) + r.rep * (cell + gap);
+    const y = top + idx[r.id] * (cell + gap);
+    const c = el("rect", { x, y, width: cell, height: cell, rx: 2, class: "cell",
+      fill: r.same ? "var(--on)" : "var(--off)" }, s);
+    const ex = D.examples[r.id];
+    hover(c, () => `${ex.domain} · ${ex.type}<br>load ${r.load} · repeat ${r.rep + 1}<br>` +
+      `${r.type === "score" ? "expected score" : "probability"} ${fmt(r.p, 6)}<br>reference ${fmt(r.ref_p, 6)}<br>` +
+      (r.same ? "bit-identical" : `differs by ${r.dp.toExponential(2)}`));
+  }
+  countEl.textContent = `${dr.identical} / ${dr.n} identical`;
+}
+wall("off", document.getElementById("wall-off"), document.getElementById("wall-off-count"));
+wall("on", document.getElementById("wall-on"), document.getElementById("wall-on-count"));
+
+/* 2. float64 receipts */
+function hex64(x) {
+  const b = new DataView(new ArrayBuffer(8)); b.setFloat64(0, x);
+  let s = ""; for (let i = 0; i < 8; i++) s += b.getUint8(i).toString(16).padStart(2, "0");
+  return s;
+}
+(function bits() {
+  const groups = {};
+  for (const r of D.drift.off.rows) if (r.type !== "score") (groups[r.id] ??= new Map()).set(r.p, (groups[r.id].get(r.p) || 0) + 1);
+  const id = Object.keys(groups).sort((a, b) => groups[b].size - groups[a].size)[0];
+  const ex = D.examples[id];
+  function render(key, host, countEl) {
+    const m = new Map();
+    for (const r of D.drift[key].rows) if (r.id === id) m.set(r.p, (m.get(r.p) || 0) + 1);
+    const ref = D.drift[key].rows.find(r => r.id === id).ref_p;
+    const refHex = hex64(ref);
+    const vals = [...m.entries()].sort((a, b) => b[1] - a[1]);
+    for (const [v, n] of vals) {
+      const hx = hex64(v);
+      let marked = "";
+      for (let i = 0; i < 16; i++) marked += hx[i] === refHex[i] ? hx[i] : `<b>${hx[i]}</b>`;
+      const row = document.createElement("div"); row.className = "row";
+      row.innerHTML = `<span class="n">${n}×</span><span>${v.toPrecision(15)}</span><span class="hex">0x${marked}</span>`;
+      host.appendChild(row);
+    }
+    countEl.textContent = `${vals.length} distinct value${vals.length > 1 ? "s" : ""} in 30 calls`;
+  }
+  render("off", document.getElementById("bits-off"), document.getElementById("bits-off-count"));
+  render("on", document.getElementById("bits-on"), document.getElementById("bits-on-count"));
+  const optionText = ex.type === "noul" ? "P(true)" : "probability of the chosen option";
+  document.getElementById("bits-caption").innerHTML =
+    `<b>The request:</b> a ${ex.domain} ${ex.type === "noul" ? "yes/no" : "choice"} question, <span class="q">“${ex.instructions.slice(0, 180)}${ex.instructions.length > 180 ? "…" : ""}”</span> The value shown is the ${optionText}. Hex digits that differ from the solo reference are highlighted.`;
+})();
+
+/* 3. cookbook jitter strips */
+function strips(host, series, qs) {
+  const rowH = 30, left = 118, right = 56, w = 460, top = 18, dom = 0.06;
+  const h = top + qs.length * rowH + 22;
+  const s = svgRoot(w, h, host);
+  const X = v => left + (Math.max(-dom, Math.min(dom, v)) + dom) / (2 * dom) * (w - left - right);
+  for (const t of [-0.05, -0.025, 0, 0.025, 0.05]) {
+    el("line", { x1: X(t), x2: X(t), y1: top - 6, y2: h - 20, stroke: t === 0 ? "var(--rule)" : "var(--grid)", "stroke-width": 1 }, s);
+    el("text", { x: X(t), y: h - 6, "text-anchor": "middle" }, s).textContent = (t > 0 ? "+" : "") + t.toFixed(3);
+  }
+  qs.forEach((q, i) => {
+    const y0 = top + i * rowH;
+    el("text", { x: left - 10, y: y0 + rowH / 2 + 3, "text-anchor": "end", class: "ink" }, s).textContent = q;
+    series.forEach((sr, j) => {
+      const ps = sr.values[q]; if (!ps) return;
+      const sorted = [...ps].sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
+      const y = y0 + 9 + j * 11;
+      for (const p of ps) {
+        const c = el("circle", { cx: X(p - med), cy: y, r: 3.6, fill: sr.color, "fill-opacity": .55,
+          stroke: "var(--surface)", "stroke-width": 1 }, s);
+        hover(c, () => `${sr.name}<br>${q}: ${fmt(p, 4)}<br>median ${fmt(med, 4)}`);
+      }
+      const crosses = ps.some(p => p >= .5) && ps.some(p => p < .5);
+      if (crosses) {
+        const t = el("text", { x: w - right + 8, y: y + 4, class: "ink" }, s);
+        t.textContent = "⇄ 0.5";
+        el("circle", { cx: w - right + 50, cy: y, r: 3, fill: sr.color }, s);
+      }
+    });
+  });
+}
+(function cookbook() {
+  const onRuns = D.cookbook.on, offRuns = D.cookbook.off;
+  const pick = (runs, cond, proto) => runs.find(r => r.kind === "noul" && r.condition === cond && r.protocol === proto);
+  const vals = run => Object.fromEntries(Object.entries(run.questions).map(([q, v]) => [q, v.p]));
+  const qs = Object.keys(D.cookbook.jev_noul);
+  strips(document.getElementById("cb-uid"), [
+    { name: "Jev 1.13 (published, fresh uid)", color: "var(--jev)", values: D.cookbook.jev_noul },
+    { name: "Deterministic Jev (fresh uid)", color: "var(--on)", values: vals(pick(onRuns, "busy", "uid")) }], qs);
+  strips(document.getElementById("cb-same"), [
+    { name: "Stock serving (identical bytes)", color: "var(--off)", values: vals(pick(offRuns, "busy", "identical")) },
+    { name: "Deterministic Jev (identical bytes)", color: "var(--on)", values: vals(pick(onRuns, "busy", "identical")) }], qs);
+  document.getElementById("cb-off-std").textContent = fmt(pick(offRuns, "busy", "identical").mean_std, 4);
+  document.getElementById("cb-on-uid-std").textContent = fmt(pick(onRuns, "busy", "uid").mean_std, 4);
+})();
+
+/* 4. engine ladder */
+(function ladder() {
+  const rows = [
+    ["Qwen3-8B · deterministic off", "dense_off", "off"],
+    ["Qwen3-8B · deterministic on", "dense_on", "on"],
+    ["Nimble-9B · deterministic off", "hybrid_off", "off"],
+    ["Nimble-9B · on, stock", "hybrid_on_stock", "on"],
+    ["Nimble-9B · on, triton backend", "hybrid_on_triton", "on"],
+    ["Nimble-9B · on, aligned splits", "hybrid_on_align64", "on"],
+    ["Nimble-9B · on, patched", "hybrid_on_patched", "on"],
+  ];
+  const left = 230, w = 720, rowH = 30, top = 8, right = 70;
+  const h = top + rows.length * rowH + 24;
+  const s = svgRoot(w, h, document.getElementById("ladder"));
+  const X = v => left + v * (w - left - right);
+  for (const t of [0, .25, .5, .75, 1]) {
+    el("line", { x1: X(t), x2: X(t), y1: top, y2: h - 20, stroke: "var(--grid)" }, s);
+    el("text", { x: X(t), y: h - 6, "text-anchor": "middle" }, s).textContent = `${t * 100}%`;
+  }
+  rows.forEach(([label, key, kind], i) => {
+    const e = D.engine[key], f = e.identical / e.n, y = top + i * rowH;
+    el("text", { x: left - 12, y: y + 18, "text-anchor": "end", class: "ink" }, s).textContent = label;
+    const b = el("rect", { x: X(0), y: y + 6, width: Math.max(2, X(f) - X(0)), height: 16, rx: 2,
+      fill: kind === "on" ? "var(--on)" : "var(--off)" }, s);
+    el("text", { x: X(f) + 8, y: y + 18, class: "ink" }, s).textContent = `${e.identical}/${e.n}`;
+    hover(b, () => `${label}<br>${e.identical} of ${e.n} identical (${pct(e.identical, e.n)})<br>` +
+      Object.entries(e.by_load).map(([l, v]) => `load ${l}: ${v.identical}/${v.n}`).join("<br>"));
+  });
+})();
+
+/* 5. root-cause diagram */
+(function diagram() {
+  const w = 760, h = 238, left = 170, unit = 2.1, s = svgRoot(w, h, document.getElementById("diagram"));
+  const X = t => left + t * unit;
+  const rows = [
+    { y: 34, label: "Recompute from token 0", chunks: [[0, 64], [64, 128], [128, 192], [192, 256]], mark: null },
+    { y: 104, label: "Stock: resume at 100", chunks: [[100, 164], [164, 228], [228, 256]], cached: 100, kind: "off",
+      note: "state copied mid-prompt from the lower-precision intermediate buffer" },
+    { y: 174, label: "Patched: resume at 64", chunks: [[64, 128], [128, 192], [192, 256]], cached: 64, kind: "on",
+      note: "state is the exact fp32 final state of a grid-aligned warm-up" },
+  ];
+  for (const t of [0, 64, 128, 192, 256]) {
+    el("line", { x1: X(t), x2: X(t), y1: 16, y2: h - 18, stroke: "var(--grid)" }, s);
+    el("text", { x: X(t), y: h - 4, "text-anchor": "middle" }, s).textContent = t;
+  }
+  el("text", { x: X(256) + 10, y: h - 4 }, s).textContent = "tokens";
+  for (const r of rows) {
+    el("text", { x: left - 12, y: r.y + 15, "text-anchor": "end", class: "ink" }, s).textContent = r.label;
+    if (r.cached) el("rect", { x: X(0), y: r.y + 3, width: X(r.cached) - X(0), height: 18, rx: 2,
+      fill: r.kind === "off" ? "var(--off-wash)" : "var(--on-wash)" }, s);
+    if (r.cached) el("text", { x: X(r.cached / 2), y: r.y + 16, "text-anchor": "middle", class: "ink" }, s).textContent = "cached";
+    for (const [a, b] of r.chunks) el("rect", { x: X(a) + 1, y: r.y + 3, width: X(b) - X(a) - 2, height: 18, rx: 2,
+      fill: "none", stroke: r.kind === "off" ? "var(--off)" : "var(--on)", "stroke-width": 1.5 }, s);
+    if (r.cached) {
+      el("circle", { cx: X(r.cached), cy: r.y + 12, r: 5, fill: r.kind === "off" ? "var(--off)" : "var(--on)",
+        stroke: "var(--surface)", "stroke-width": 2 }, s);
+      el("text", { x: X(0), y: r.y + 38 }, s).textContent = r.note;
+    }
+  }
+})();
+
+/* 6. quality table */
+(function quality() {
+  const q = D.quality, t = document.getElementById("quality");
+  const row = (name, a, b, f) => `<tr><td>${name}</td><td class="num">${f(a)}</td><td class="num">${f(b)}</td></tr>`;
+  const acc = o => `${o.correct}/${o.n} · ${(100 * o.accuracy).toFixed(1)}%`;
+  t.innerHTML = `<thead><tr><th>Held-out set, 324 requests</th><th class="num"><span class="tag off">stock</span></th><th class="num"><span class="tag on">deterministic</span></th></tr></thead><tbody>` +
+    row("All decisions", q.off.all, q.on.all, acc) +
+    row("Yes/no (noul)", q.off.by_type.noul, q.on.by_type.noul, acc) +
+    row("Choice", q.off.by_type.choice, q.on.by_type.choice, acc) +
+    row("Score, top level", q.off.by_type.score, q.on.by_type.score, acc) +
+    row("Brier score, lower is better", q.off.all.brier, q.on.all.brier, x => fmt(x)) +
+    row("Log loss", q.off.all.nll, q.on.all.nll, x => fmt(x)) +
+    row("Calibration error (ECE, 10 bins)", q.off.all.ece, q.on.all.ece, x => fmt(x)) + "</tbody>";
+})();
+
+/* 7. cost charts */
+const COST = [
+  { key: "off", name: "Stock serving, upstream flow", color: "var(--off)", dash: "" },
+  { key: "off_fast", name: "Stock, same flow", color: "var(--muted)", dash: "5 4" },
+  { key: "on", name: "Deterministic Jev", color: "var(--on)", dash: "" },
+];
+const cold = key => D.latency[key].levels.filter(l => l.phase === "cold");
+function lineChart(host, metric, fmtY, step) {
+  const w = 420, h = 230, left = 46, right = 16, top = 14, bottom = 30;
+  const s = svgRoot(w, h, host);
+  const cs = cold("off").map(l => l.concurrency);
+  const all = COST.flatMap(c => cold(c.key).map(l => l[metric]));
+  const ymax = Math.ceil(Math.max(...all) / step) * step;
+  const X = i => left + i / (cs.length - 1) * (w - left - right);
+  const Y = v => top + (1 - v / ymax) * (h - top - bottom);
+  for (let t = 0; t <= 4; t++) {
+    const v = ymax * t / 4;
+    el("line", { x1: left, x2: w - right, y1: Y(v), y2: Y(v), stroke: "var(--grid)" }, s);
+    el("text", { x: left - 6, y: Y(v) + 4, "text-anchor": "end" }, s).textContent = fmtY(v);
+  }
+  cs.forEach((c, i) => { el("text", { x: X(i), y: h - 10, "text-anchor": "middle" }, s).textContent = `${c} at once`; });
+  for (const c of COST) {
+    const lv = cold(c.key);
+    el("polyline", { points: lv.map((l, i) => `${X(i)},${Y(l[metric])}`).join(" "), fill: "none",
+      stroke: c.color, "stroke-width": 2, "stroke-dasharray": c.dash }, s);
+    lv.forEach((l, i) => {
+      const p = el("circle", { cx: X(i), cy: Y(l[metric]), r: 4.5, fill: c.color, stroke: "var(--surface)", "stroke-width": 2 }, s);
+      hover(p, () => `${c.name}<br>${l.concurrency} concurrent<br>p50 ${l.p50_ms.toFixed(0)} ms · p99 ${l.p99_ms.toFixed(0)} ms<br>${l.decisions_per_s.toFixed(1)} decisions/s`);
+    });
+  }
+}
+lineChart(document.getElementById("lat"), "p50_ms", v => v.toFixed(0), 200);
+lineChart(document.getElementById("thr"), "decisions_per_s", v => v.toFixed(0), 10);
+document.getElementById("cost-legend").innerHTML = COST.map(c => `<span><i class="sw" style="background:${c.color}"></i>${c.name}</span>`).join("");
+(function costTable() {
+  const rows = [
+    ["Stock serving, upstream flow", "off", false],
+    ["Stock, same flow as Deterministic Jev", "off_fast", false],
+    ["Deterministic Jev", "on", true],
+    ["Deterministic Jev with exact response memo", "on_memo", true],
+  ];
+  const t = document.getElementById("ablation");
+  t.innerHTML = `<thead><tr><th>Configuration</th><th>Bit-identical</th><th class="num">p50, 1 at once</th><th class="num">dec/s, 32 at once</th><th class="num">dec/s, exact repeats</th></tr></thead><tbody>` +
+    rows.map(([name, key, det]) => {
+      const lv = D.latency[key].levels, c = lv.filter(l => l.phase === "cold"), r = lv.find(l => l.phase === "repeat");
+      return `<tr${key === "on_memo" ? ' class="hl"' : ""}><td>${name}</td><td>${det ? '<span class="tag on">yes</span>' : '<span class="tag off">no</span>'}</td>` +
+        `<td class="num">${c[0].p50_ms.toFixed(0)} ms</td><td class="num">${c[c.length - 1].decisions_per_s.toFixed(1)}</td><td class="num">${r.decisions_per_s.toFixed(1)}</td></tr>`;
+    }).join("") + "</tbody>";
+})();
+
+/* 8. invariance */
+(function inv() {
+  const r = D.invariance.raw, c = D.invariance.canonical;
+  const names = { key_order: "Keys in <code>state</code> reordered", option_order: "Choice options reversed",
+    whitespace: "Extra spaces in instructions", uid: "Random <code>uid</code> added to state" };
+  document.getElementById("invariance").innerHTML =
+    `<thead><tr><th>Same meaning, different bytes</th><th class="num">requests</th><th class="num">decision flips</th><th class="num">flips with --canonicalize</th><th class="num">mean |Δp|</th></tr></thead><tbody>` +
+    Object.keys(names).map(k => `<tr${k === "key_order" ? ' class="hl"' : ""}><td>${names[k]}</td><td class="num">${r[k].n}</td><td class="num">${r[k].flips}</td><td class="num">${c[k].flips}</td><td class="num">${fmt(r[k].mean_abs_dp, 4)}</td></tr>`).join("") + "</tbody>";
+})();
+
+/* 9. golden + fingerprint */
+(function golden() {
+  const g = D.golden;
+  const rows = [
+    ["Stock serving, after restart", g.off_restart, "off"],
+    ["Deterministic Jev, same process, new arrival order", g.on_same, "on"],
+    ["Deterministic Jev, after restart", g.on_restart, "on"],
+    ["Deterministic Jev, different GPU (same model of H100)", g.on_gpu4, "on"],
+    ["Final build (single-question fast path), new fingerprint", g.final_on, "on"],
+    ["Final build served through the response memo", g.final_on_memo, "on"],
+  ];
+  document.getElementById("golden").innerHTML =
+    `<thead><tr><th>Replay of 324 recorded decisions</th><th class="num">bit-identical</th><th class="num">decision flips</th></tr></thead><tbody>` +
+    rows.map(([n, v, k]) => `<tr><td>${n}</td><td class="num"><span class="tag ${v.identical === v.n ? "on" : "off"}">${v.identical}/${v.n}</span></td><td class="num">${v.decision_flips}</td></tr>`).join("") + "</tbody>";
+  const fp = D.fingerprint.on, p = fp.parts, sg = p.sglang;
+  document.getElementById("fp").textContent =
+`x-detjev-fingerprint: ${fp.fingerprint}
+  weights          ${Object.keys(p.weights).length} safetensors shards, sha256 ${Object.values(p.weights)[0].slice(0, 16)}…
+  prompt compiler  sha256 ${p.compiler_sha256.slice(0, 16)}…
+  sglang           ${sg.version} · attention ${sg.attention_backend} · deterministic ${sg.enable_deterministic_inference} · radix cache ${sg.disable_radix_cache ? "off" : "on"}
+  gpu              ${p.gpu}
+  temperature      ${p.temperature}`;
+})();
+</script>

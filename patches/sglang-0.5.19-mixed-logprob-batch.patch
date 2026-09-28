@@ -1,0 +1,39 @@
+--- /tmp/claude-1713862026/-local-ssd-pk669-programming/75c63c8a-e446-42c4-ab48-594819c311b4/scratchpad/brp.orig.py	2026-09-28 19:32:55.215208583 +0000
++++ .venv/lib/python3.12/site-packages/sglang/srt/managers/scheduler_components/batch_result_processor.py	2026-09-28 19:32:55.235208684 +0000
+@@ -487,14 +487,14 @@
+                 )
+             if logits_output.next_token_top_logprobs_val:
+                 logits_output.next_token_top_logprobs_val = [
+-                    v.tolist() for v in logits_output.next_token_top_logprobs_val
++                    (v.tolist() if torch.is_tensor(v) else v) for v in logits_output.next_token_top_logprobs_val
+                 ]
+                 logits_output.next_token_top_logprobs_idx = [
+-                    x.tolist() for x in logits_output.next_token_top_logprobs_idx
++                    (x.tolist() if torch.is_tensor(x) else x) for x in logits_output.next_token_top_logprobs_idx
+                 ]
+             if logits_output.next_token_token_ids_logprobs_val:
+                 logits_output.next_token_token_ids_logprobs_val = [
+-                    v.tolist() for v in logits_output.next_token_token_ids_logprobs_val
++                    (v.tolist() if torch.is_tensor(v) else v) for v in logits_output.next_token_token_ids_logprobs_val
+                 ]
+ 
+     def _apply_prefill_logprobs(
+@@ -1042,15 +1042,15 @@
+             next_token_logprobs = logits_output.next_token_logprobs.tolist()
+             if logits_output.next_token_top_logprobs_val:
+                 logits_output.next_token_top_logprobs_val = [
+-                    v.tolist() for v in logits_output.next_token_top_logprobs_val
++                    (v.tolist() if torch.is_tensor(v) else v) for v in logits_output.next_token_top_logprobs_val
+                 ]
+                 logits_output.next_token_top_logprobs_idx = [
+-                    x.tolist() for x in logits_output.next_token_top_logprobs_idx
++                    (x.tolist() if torch.is_tensor(x) else x) for x in logits_output.next_token_top_logprobs_idx
+                 ]
+ 
+             if logits_output.next_token_token_ids_logprobs_val:
+                 logits_output.next_token_token_ids_logprobs_val = [
+-                    v.tolist() for v in logits_output.next_token_token_ids_logprobs_val
++                    (v.tolist() if torch.is_tensor(v) else v) for v in logits_output.next_token_token_ids_logprobs_val
+                 ]
+         return next_token_ids, next_token_logprobs
+ 

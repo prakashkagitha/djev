@@ -1,0 +1,23 @@
+{
+ "items": 2236,
+ "dropped": 14,
+ "sha256": "8b1895b73d03bb99e083acab00ba119e729215a5702b40eddada37f4e7a48fbb",
+ "by_source": {
+  "xstest": {
+   "n": 450,
+   "unsafe": 200
+  },
+  "toxicchat": {
+   "n": 987,
+   "unsafe": 354
+  },
+  "in_the_wild": {
+   "n": 599,
+   "unsafe": 300
+  },
+  "jbb": {
+   "n": 200,
+   "unsafe": 100
+  }
+ }
+}

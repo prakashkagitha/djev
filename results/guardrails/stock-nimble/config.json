@@ -1,0 +1,8 @@
+{
+ "backend": "stock-nimble",
+ "base_url": "http://127.0.0.1:8020",
+ "model": "nimble-latest",
+ "repeats": 5,
+ "battery": "typesafe-llm-guardrails-2026-08-15",
+ "items": 2236
+}

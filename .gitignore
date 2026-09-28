@@ -1,0 +1,24 @@
+# secrets — never commit
+typesafe_apikey.txt
+*.key
+.env
+# heavy / local
+.venv/
+.venv-api/
+models/
+logs/
+openjev-sglang/
+nimble/
+site/template_v1.html
+__pycache__/
+# third-party data: rebuilt locally by tasks/*/datasets.py, never redistributed
+data/raw/
+data/guardrails_v1.jsonl
+# built page (rebuild with site/build_data.py && site/build_page.py)
+site/deterministic-jev.html
+site/template_v1.html
+figures/
+.pytest_cache/
+# copies of third-party documentation pages/figures (link to the source instead)
+docs/research/cookbooks/source/
+docs/research/guardrails/llm_guardrails.md

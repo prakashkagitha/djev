@@ -1,0 +1,27 @@
+--- /tmp/claude-1713862026/-local-ssd-pk669-programming/75c63c8a-e446-42c4-ab48-594819c311b4/scratchpad/schedule_batch.orig.py	2026-09-28 19:56:28.692351082 +0000
++++ .venv/lib/python3.12/site-packages/sglang/srt/managers/schedule_batch.py	2026-09-28 20:16:24.859500055 +0000
+@@ -2790,6 +2790,15 @@
+             return i + 1
+ 
+         mask = req.extend_range.length >= checkpoint_grid
++        # detjev patch: a checkpoint taken before the end of an extend is read from the
++        # chunk kernel's intermediate `h` (lower precision than the fp32 final state), so
++        # resuming from it is not bitwise-equal to recomputing. In deterministic mode only
++        # checkpoint when the extend ends exactly on the grid (state = final fp32 state).
++        _det = __import__("sglang.srt.runtime_context", fromlist=["get_exec"]).get_exec()
++        _det = _det.deterministic.enable_deterministic_inference and __import__("os").environ.get(
++            "SGLANG_DET_ALIGNED_MAMBA_CHECKPOINTS", "1") == "1"
++        if _det and req.extend_range.length % checkpoint_grid != 0:
++            mask = False
+         track_index = req.kv.mamba_ping_pong_track_buffer[
+             req.kv.mamba_next_track_idx
+         ].item()
+@@ -2832,7 +2841,7 @@
+                         req.kv.mamba_next_track_idx
+                     )
+                 )
+-            if req.mamba_branching_seqlen is not None:
++            if req.mamba_branching_seqlen is not None and not _det:
+                 # track branching point in this forward if the branching point
+                 # is within the current extend batch.
+                 branching_seqlen_aligned_mask = (

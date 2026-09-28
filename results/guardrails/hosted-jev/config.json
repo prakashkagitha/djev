@@ -1,0 +1,8 @@
+{
+ "backend": "hosted-jev",
+ "base_url": "https://api.typesafe.ai",
+ "model": "jev-1.13.0",
+ "repeats": 10,
+ "battery": "typesafe-llm-guardrails-2026-08-15",
+ "items": 2236
+}

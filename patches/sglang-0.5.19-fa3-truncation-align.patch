@@ -1,0 +1,18 @@
+--- /tmp/claude-1713862026/-local-ssd-pk669-programming/75c63c8a-e446-42c4-ab48-594819c311b4/scratchpad/scheduler.orig.py	2026-09-28 19:47:13.915552754 +0000
++++ .venv/lib/python3.12/site-packages/sglang/srt/managers/scheduler.py	2026-09-28 19:47:13.934552850 +0000
+@@ -1611,6 +1611,15 @@
+         self.truncation_align_size = (
+             get_int_env_var(env_var, default_size) if env_var else None
+         )
++        # detjev patch: fa3 attention needs no split alignment, but hybrid linear-attention
++        # layers (Gated DeltaNet) compute in fixed-size chunks, so a chunked-prefill split at
++        # an unaligned, batch-dependent position changes their numerics. Opt-in alignment.
++        if self.truncation_align_size is None and os.environ.get(
++            "SGLANG_FA3_PREFILL_TRUNCATION_ALIGN_SIZE"
++        ):
++            self.truncation_align_size = int(
++                os.environ["SGLANG_FA3_PREFILL_TRUNCATION_ALIGN_SIZE"]
++            )
+ 
+     def init_request_dispatcher(self):
+         self._request_dispatcher = TypeBasedDispatcher(
