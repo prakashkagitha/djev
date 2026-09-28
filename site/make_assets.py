@@ -200,7 +200,7 @@ def scoreboard():
              (f"{h['retry_attack']['leaky_items']} → {d['retry_attack']['leaky_items']}",
               "unsafe messages that got\nthrough on some calls only"),
              ("282 = 282", "correct answers of 324,\ndeterminism on vs off"),
-             ("122 ms", "median guard call\n(hosted Jev: 144 ms)")]
+             ("122 ms", "median guard call\n(default serving: 121 ms)")]
     for i, (v, k) in enumerate(tiles):
         x, y = 40 + (i % 3) * 380, 150 + (i // 3) * 225
         ax.add_patch(FancyBboxPatch((x, y), 360, 200, boxstyle="round,pad=0,rounding_size=10", lw=1.2,

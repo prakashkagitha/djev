@@ -168,7 +168,7 @@ nav.top a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--o
 <header>
   <p class="eyebrow">Open System One decisions · SGLang · one H100</p>
   <h1>Deterministic Jev</h1>
-  <p class="deck">Jev turns text into typed decisions in a tenth of a second. Ask it the same question twice and it can answer differently. Deterministic Jev is an open server that speaks the same API and gives the same answer every time.</p>
+  <p class="deck">Jev turns text into typed decisions for software. Ask it the same question twice and it can answer differently. Deterministic Jev is an open server that speaks the same API and gives the same answer every time.</p>
 </header>
 
 <section>
@@ -224,7 +224,7 @@ nav.top a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--o
   <h2>Guardrail suite</h2>
   <p>TypeSafe's “Guardrails for LLMs” battery (four hazard questions and a severity score) and its <code>strict</code> routing, applied to XSTest, ToxicChat, in-the-wild jailbreaks and JailbreakBench behaviors. A message counts as flagged when it is not passed. Hosted Jev got 10 identical calls per message, the local servers 5, all at up to 32 concurrent requests.</p>
   <div class="scroll"><table id="gr-main"></table></div>
-  <p class="note">“Leaks on some calls” counts unsafe messages that were passed on at least one call and stopped on another. For those, resending the same text is enough to get through. Latency is the median for one guard call at a time. One H100 serves about 20 guard calls per second at most, while hosted Jev handled 51 per second at 8 concurrent calls without slowing.</p>
+  <p class="note">“Leaks on some calls” counts unsafe messages that were passed on at least one call and stopped on another. For those, resending the same text is enough to get through. Latency is the median for one guard call at a time on our H100; hosted Jev latency is not compared.</p>
   <div class="scroll"><table id="gr-src"></table></div>
   <div class="scroll"><table id="gr-ex"></table></div>
   <p class="note">Labels come from each dataset. ToxicChat marks toxic content broadly, so every guard's recall on it is low. Hosted Jev is a different, larger model, and these differences in detection are specific to this suite and this policy.</p>
@@ -333,7 +333,7 @@ nav.top a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--o
 <header class="page-head"><p class="eyebrow">How it works</p><h2>From a deterministic flag to a deterministic answer</h2></header>
 <section>
   <h2>A decision you can replay</h2>
-  <p>TypeSafe built Jev as a fast decision function for software. You give it a state and typed questions, and it returns probabilities in about a tenth of a second instead of a generated paragraph.</p>
+  <p>TypeSafe built Jev as a fast decision function for software. You give it a state and typed questions, and it returns probabilities instead of a generated paragraph.</p>
   <blockquote>“Think of Jev as a frontier-intelligence function call: unstructured state in, typed probabilistic decisions out.”<cite>typesafe.ai · Introducing System One Models and Jev</cite></blockquote>
   <p>Their pitch is software-like reliability: calibrated probabilities, answers that always match the schema, and “smart if-statements” inside ordinary code paths. An if-statement has one more property that engineers take for granted. Run it twice on the same input and it takes the same branch. TypeSafe measured this for Jev and says so directly:</p>
   <blockquote>“This policy does not make the model deterministic.”<cite>docs.typesafe.ai · consistency cookbooks</cite></blockquote>
@@ -534,7 +534,7 @@ showPage();
   const always = h.drift.filter(x => x.distinct === 1).length;
   document.getElementById("hosted-text").innerHTML =
     `Every one of the 60 cookbook calls returned a different set of answers. The spread matches TypeSafe's published figure with the <code>uid</code> protocol (0.0102 for the claim), so their variation is run-to-run noise and not sensitivity to that field. ` +
-    `On the 24 held-out requests used above, each sent 10 times, ${always} of 24 always returned the same answer, ${flips} changed their decision, and the widest spread on a single request was ${maxSpread.toFixed(2)}. The median call took ${Math.round(h.cookbook.noul.sequential.p50_ms)} ms.`;
+    `On the 24 held-out requests used above, each sent 10 times, ${always} of 24 always returned the same answer, ${flips} changed their decision, and the widest spread on a single request was ${maxSpread.toFixed(2)}.`;
 })();
 
 
@@ -560,7 +560,7 @@ function chips(host, ex, caption) {
   document.getElementById("guard-summary").innerHTML =
     `On this message a retrying attacker gets past hosted Jev within three tries ${pct1(1 - (1 - hp) ** 3)} of the time. Across the whole suite, hosted Jev changed its action between identical calls on ${h.consistency.action_flips} messages, and ${h.retry_attack.leaky_items} unsafe messages got through on some calls but not others. Deterministic Jev changed nothing: ${d.consistency.action_flips} and ${d.retry_attack.leaky_items}. It also caught ${pct1(d.detection.all.per_run_mean.recall)} of unsafe messages against ${pct1(h.detection.all.per_run_mean.recall)}, with the same false-alarm rate of about ${pct1(d.detection.all.per_run_mean.fpr)}.`;
 
-  const lat = n => G.latency[n] ? G.latency[n][0].p50_ms.toFixed(0) + " ms" : "–";
+  const lat = n => n !== "hosted-jev" && G.latency[n] ? G.latency[n][0].p50_ms.toFixed(0) + " ms" : "–";
   const rows = ["hosted-jev", "default-serving", "djev"].map(n => {
     const x = c(n), m = x.detection.all.per_run_mean, cons = x.consistency, r = x.retry_attack;
     return `<tr${n === "djev" ? ' class="hl"' : ""}><td>${GNAMES[n]}</td><td class="num">${pct1(m.recall)}</td><td class="num">${pct1(m.fpr)}</td><td class="num">${m.f1.toFixed(3)}</td>` +
