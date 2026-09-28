@@ -20,9 +20,10 @@ from matplotlib.patches import FancyBboxPatch, Rectangle
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "assets"
-OUT.mkdir(exist_ok=True)
-W, H, DPI = 12, 6.75, 100
+import os
+OUT = ROOT / os.environ.get("ASSET_DIR", "assets")
+OUT.mkdir(parents=True, exist_ok=True)
+W, H, DPI = 12, 6.75, int(os.environ.get("ASSET_DPI", "100"))
 BG, INK, INK2, MUTED, RULE = "#f7f8fa", "#0f1722", "#445061", "#7a8594", "#dfe3e8"
 JEV, DEF, DJEV = "#15936a", "#e0612f", "#2a78d6"
 YES_FILL = {JEV: "#d5efe5", DJEV: "#d8e6f8", DEF: "#fbe1d6"}
@@ -182,7 +183,7 @@ def consistency():
             "Policy agree: a top probability under 0.60 counts as “uncertain”.", fontsize=10.5, color=MUTED, va="center",
             linespacing=1.5)
     footer(ax, "Agreement measures repeatability, not correctness (TypeSafe makes the same point).")
-    fig.savefig(OUT / "consistency.png", facecolor=BG)
+    fig.savefig(OUT / "consistency.png", facecolor=BG, dpi=DPI)
     plt.close(fig)
 
 
@@ -208,7 +209,7 @@ def scoreboard():
         ax.text(x + 24, y + 68, v, fontsize=34, weight="bold", va="center", color=DJEV)
         ax.text(x + 24, y + 140, k, fontsize=14, va="center", color=INK2, linespacing=1.4)
     footer(ax, "Arrows: hosted Jev 1.13 → djev. Measured 2026-09-28; raw data and scripts in the repo.")
-    fig.savefig(OUT / "scoreboard.png", facecolor=BG)
+    fig.savefig(OUT / "scoreboard.png", facecolor=BG, dpi=DPI)
     plt.close(fig)
 
 
@@ -240,7 +241,66 @@ def root_cause():
             ax.add_patch(FancyBboxPatch((X(a) + 2, y), X(b) - X(a) - 4, 44, boxstyle="round,pad=0,rounding_size=4",
                                         lw=2, edgecolor=c, facecolor="none"))
     footer(ax, "Fix: checkpoint only at grid-aligned prefill ends in deterministic mode + align prefill splits (patches/).")
-    fig.savefig(OUT / "root_cause.png", facecolor=BG)
+    fig.savefig(OUT / "root_cause.png", facecolor=BG, dpi=DPI)
+    plt.close(fig)
+
+
+def cover():
+    load = lambda n: json.loads((ROOT / f"results/typesafe_consistency/{n}.json").read_text())
+    pick = lambda d: next(c for c in d["conditions"] if c["kind"] == "noul" and c["protocol"] == "identical"
+                          and c["mode"] == "sequential")
+    jev = [x["covered"]["noul"] for x in pick(load("hosted-jev"))["draws"]]
+    dj = [x["covered"]["noul"] for x in pick(load("djev"))["draws"]]
+    fig, ax = canvas()
+    ax.text(40, 92, "djev", fontsize=64, weight="bold", va="center", color=DJEV)
+    ax.text(262, 80, "Deterministic Jev", fontsize=26, weight="bold", va="center")
+    ax.text(262, 118, "Open, Jev-compatible decisions that repeat, bit for bit", fontsize=17, color=INK2, va="center")
+    ax.text(40, 205, "“Is this insurance claim covered?”  Same request bytes, 15 calls:", fontsize=15, color=INK2, va="center")
+    for row, (name, vals, c) in enumerate([("Hosted Jev", jev, JEV), ("djev", dj, DJEV)]):
+        y = 250 + row * 92
+        ax.text(40, y + 26, name, fontsize=17, weight="bold", va="center")
+        for i, p in enumerate(vals):
+            yes = p >= 0.5
+            ax.add_patch(FancyBboxPatch((200 + i * 52, y), 44, 52, boxstyle="round,pad=0,rounding_size=5", lw=2,
+                                        edgecolor=c, facecolor=YES_FILL[c] if yes else "white"))
+            ax.text(222 + i * 52, y + 27, "Y" if yes else "N", ha="center", va="center", fontsize=15, weight="bold")
+        n_yes = sum(p >= 0.5 for p in vals)
+        ax.text(1160, y + 26, f"{n_yes} yes · {15 - n_yes} no" if name == "Hosted Jev" else "15 × identical",
+                fontsize=15, weight="bold", ha="right", va="center")
+    stats = [("0 of 2,236", "guardrail decisions that change\nbetween identical calls (Jev: 44)"),
+             ("720 / 720", "repeats bit-identical\nunder concurrent load"),
+             ("≈ free", "51 ms vs 50 ms median decision\nvs SGLang's default mode")]
+    for i, (v, k) in enumerate(stats):
+        x = 40 + i * 380
+        ax.plot([x, x], [470, 580], color=DJEV, lw=3)
+        ax.text(x + 20, 492, v, fontsize=26, weight="bold", va="center")
+        ax.text(x + 20, 550, k, fontsize=13, color=INK2, va="center", linespacing=1.4)
+    footer(ax, "SGLang deterministic inference + new patches for hybrid (Gated DeltaNet) models · MIT")
+    fig.savefig(OUT / "cover.png", facecolor=BG, dpi=DPI)
+    plt.close(fig)
+
+
+def how_it_works():
+    fig, ax = canvas()
+    ax.text(40, 58, "How djev makes a decision repeat", fontsize=26, weight="bold", va="center")
+    ax.text(40, 100, "Same request bytes → same probabilities, whatever else is on the GPU.", fontsize=14, color=INK2, va="center")
+    layers = [
+        ("Jev API", "POST /v1/systemone · noul · choice · score", "openjev-sglang: one prefill + one-token read of option log-probs, no generation", INK2),
+        ("Model", "Bespoke-Nimble-9B on Qwen3.5-9B (hybrid)", "Gated DeltaNet linear attention + full attention · BF16 · one H100", INK2),
+        ("Engine", "SGLang 0.5.19 deterministic inference", "batch-invariant matmul / norm / log-softmax, fixed attention splits (Thinking Machines, LMSYS)", INK2),
+        ("djev patch 1", "Exact state checkpoints on a 64-token grid", "never resume from the bf16 mid-chunk copy of the recurrent state", DJEV),
+        ("djev patch 2", "Aligned prefill splits", "long prompts split under load also resume on the grid", DJEV),
+        ("djev server", "Aligned warm-up · exact memo · fingerprint", "x-detjev-fingerprint = hash(weights, prompt code, engine, flags, GPU)", DJEV),
+    ]
+    for i, (tag, head, sub, c) in enumerate(layers):
+        y = 135 + i * 80
+        ax.add_patch(FancyBboxPatch((40, y), 1120, 66, boxstyle="round,pad=0,rounding_size=8", lw=1.6,
+                                    edgecolor=c if c == DJEV else RULE, facecolor="#e9f1fc" if c == DJEV else "white"))
+        ax.text(62, y + 33, tag, fontsize=13, weight="bold", color=c, va="center")
+        ax.text(250, y + 22, head, fontsize=15, weight="bold", va="center")
+        ax.text(250, y + 47, sub, fontsize=12, color=INK2, va="center")
+    footer(ax, "Qwen3-8B (dense) was already deterministic with SGLang's flag; hybrid models needed the patches.")
+    fig.savefig(OUT / "how_it_works.png", facecolor=BG, dpi=DPI)
     plt.close(fig)
 
 
@@ -250,5 +310,7 @@ if __name__ == "__main__":
     consistency()
     scoreboard()
     root_cause()
+    cover()
+    how_it_works()
     for p in sorted(OUT.iterdir()):
         print(p.name, f"{p.stat().st_size / 1024:.0f} KB")
