@@ -29,6 +29,6 @@ Two sources are pending Hugging Face access approval: WildGuardTest (`allenai/wi
 ```bash
 python -m tasks.guardrails.datasets                       # build the frozen item set
 python -m tasks.guardrails.run --backend hosted --repeats 10
-python -m tasks.guardrails.run --backend local --url http://127.0.0.1:8020 --name detjev --repeats 5
-python -m tasks.guardrails.analyze hosted-jev detjev stock-nimble
+python -m tasks.guardrails.run --backend local --url http://127.0.0.1:8020 --name djev --repeats 5
+python -m tasks.guardrails.analyze hosted-jev djev default-serving
 ```

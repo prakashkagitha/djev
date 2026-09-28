@@ -1,5 +1,5 @@
 {
- "backend": "stock-nimble",
+ "backend": "djev",
  "base_url": "http://127.0.0.1:8020",
  "model": "nimble-latest",
  "repeats": 5,

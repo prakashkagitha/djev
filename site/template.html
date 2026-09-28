@@ -14,7 +14,7 @@
   --rule: #d9dfe6;
   --grid: #e5e9ee;
   --on: #2a78d6;       /* Deterministic Jev */
-  --off: #eb6834;      /* stock serving, deterministic mode off */
+  --off: #eb6834;      /* default serving, deterministic mode off */
   --jev: #1baf7a;      /* hosted Jev, published numbers */
   --on-wash: rgba(42,120,214,.10);
   --off-wash: rgba(235,104,52,.12);
@@ -245,11 +245,11 @@ nav.top a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--o
 
 <section>
   <h2>Under load, every repeat</h2>
-  <p>The same 24 requests, each sent 30 times while other tenants share the GPU. Stock serving on the left, Deterministic Jev on the right.</p>
+  <p>The same 24 requests, each sent 30 times while other tenants share the GPU. Default serving on the left, Deterministic Jev on the right.</p>
   <figure class="wide">
     <div class="pair">
       <div class="panel">
-        <div class="panel-title"><h3>Stock serving</h3><span class="count" id="wall-off-count"></span></div>
+        <div class="panel-title"><h3>Default serving</h3><span class="count" id="wall-off-count"></span></div>
         <div id="wall-off"></div>
       </div>
       <div class="panel">
@@ -267,10 +267,10 @@ nav.top a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--o
 
 <section>
   <h2>What “the same answer” means here</h2>
-  <p>Stock serving usually picks the same option. The probabilities under it wobble, and a threshold near the wobble eventually gets crossed. Below is one real request from the test set, sent 30 times to each server. Every distinct float64 that came back is listed with its bit pattern.</p>
+  <p>Default serving usually picks the same option. The probabilities under it wobble, and a threshold near the wobble eventually gets crossed. Below is one real request from the test set, sent 30 times to each server. Every distinct float64 that came back is listed with its bit pattern.</p>
   <figure class="wide">
     <div class="pair">
-      <div class="panel"><div class="panel-title"><h3>Stock serving</h3><span class="count" id="bits-off-count"></span></div><div class="receipt" id="bits-off"></div></div>
+      <div class="panel"><div class="panel-title"><h3>Default serving</h3><span class="count" id="bits-off-count"></span></div><div class="receipt" id="bits-off"></div></div>
       <div class="panel"><div class="panel-title"><h3>Deterministic Jev</h3><span class="count" id="bits-on-count"></span></div><div class="receipt on" id="bits-on"></div></div>
     </div>
     <figcaption id="bits-caption"></figcaption>
@@ -290,12 +290,12 @@ nav.top a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--o
       <div class="panel">
         <div class="panel-title"><h3>Byte-identical requests, busy GPU</h3><span class="count">isolates run-to-run noise</span></div>
         <div id="cb-same"></div>
-        <div class="legend"><span><i class="sw dot" style="background:var(--off)"></i>Stock serving</span><span><i class="sw dot" style="background:var(--on)"></i>Deterministic Jev</span></div>
+        <div class="legend"><span><i class="sw dot" style="background:var(--off)"></i>Default serving</span><span><i class="sw dot" style="background:var(--on)"></i>Deterministic Jev</span></div>
       </div>
     </div>
     <figcaption><b>Each dot is one call</b>, drawn as its distance from that question's median answer. A ⇄ marks a question whose yes/no decision changed between calls. Jev's values were transcribed from the cookbook figures at two decimals. The two models answer the claim differently (ours says <code>covered</code> ≈ 0.91), so this compares stability, not correctness.</figcaption>
   </figure>
-  <p>On byte-identical requests, stock serving produced a mean per-question spread of <span class="mono" id="cb-off-std"></span> and flipped <code>fraud_flag</code> between yes and no on a busy GPU. Deterministic Jev's spread was exactly zero. With the uid protocol our spread (<span class="mono" id="cb-on-uid-std"></span>) is close to Jev's published 0.0102, and <code>fraud_flag</code> still flips. Determinism freezes the output for a given input. It does not make the model ignore a field it should ignore.</p>
+  <p>On byte-identical requests, default serving produced a mean per-question spread of <span class="mono" id="cb-off-std"></span> and flipped <code>fraud_flag</code> between yes and no on a busy GPU. Deterministic Jev's spread was exactly zero. With the uid protocol our spread (<span class="mono" id="cb-on-uid-std"></span>) is close to Jev's published 0.0102, and <code>fraud_flag</code> still flips. Determinism freezes the output for a given input. It does not make the model ignore a field it should ignore.</p>
 </section>
 
 <section>
@@ -314,11 +314,11 @@ nav.top a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--o
       <div class="panel"><div class="panel-title"><h3>Throughput</h3><span class="count">decisions per second</span></div><div id="thr"></div></div>
     </div>
     <div class="legend" id="cost-legend"></div>
-    <figcaption><b>Fresh requests only.</b> Closed-loop load, one question per request, 80 different requests per level, cache flushed before each level, one H100 NVL. “Stock, same flow” skips the shared-prefix warm-up for single-question requests, as Deterministic Jev does, so the gap between it and Deterministic Jev is the cost of determinism alone.</figcaption>
+    <figcaption><b>Fresh requests only.</b> Closed-loop load, one question per request, 80 different requests per level, cache flushed before each level, one H100 NVL. “Default, same flow” skips the shared-prefix warm-up for single-question requests, as Deterministic Jev does, so the gap between it and Deterministic Jev is the cost of determinism alone.</figcaption>
   </figure>
   <div class="scroll"><table id="ablation"></table></div>
-  <p>The upstream flow sends a separate warm-up call before each question, which costs a round trip. Deterministic Jev skips it when there is only one question, and that accounts for the gap with stock serving. With the same flow, the two servers are within a millisecond and within 1% of each other.</p>
-  <p>Determinism does give up one thing. The patch only keeps exact state checkpoints, so the engine can no longer reuse part of a cached prompt when the exact same request comes back. Because answers are a pure function of the request bytes, the server can instead memoize whole responses, which is not safe on a nondeterministic server. With <code>--memo</code>, exact repeats return in 61 ms at 344 decisions per second. An earlier benchmark that replayed the same requests at every level had shown stock serving at 111 decisions per second, and that figure came from exactly this kind of cache reuse.</p>
+  <p>The upstream flow sends a separate warm-up call before each question, which costs a round trip. Deterministic Jev skips it when there is only one question, and that accounts for the gap with default serving. With the same flow, the two servers are within a millisecond and within 1% of each other.</p>
+  <p>Determinism does give up one thing. The patch only keeps exact state checkpoints, so the engine can no longer reuse part of a cached prompt when the exact same request comes back. Because answers are a pure function of the request bytes, the server can instead memoize whole responses, which is not safe on a nondeterministic server. With <code>--memo</code>, exact repeats return in 61 ms at 344 decisions per second. An earlier benchmark that replayed the same requests at every level had shown default serving at 111 decisions per second, and that figure came from exactly this kind of cache reuse.</p>
 </section>
 
 <section>
@@ -413,7 +413,7 @@ scripts/run_final.sh     # final build: drift, golden, cookbook, fair latency wi
   <p>Every result card reports the same columns: accuracy, calibration (Brier, ECE), replay rate, decision flips on identical bytes, retry-attack pass rate, invariance flips, latency and cost. Contributors can add a task, a backend, a model or an engine fix. CPU tests run on every pull request, and GPU replay runs attach their fingerprint and raw output.</p>
   <div class="wide">
     <div class="phase"><span class="when">v0.1 · now</span><div><h3>Reference and evidence</h3><ul><li>Server, patches, replay kit, cookbook replays, hosted Jev comparison, this site.</li></ul></div></div>
-    <div class="phase"><span class="when">v0.2 · in progress</span><div><h3>Flagship suite: guardrails</h3><ul><li>Done: 2,236 messages from four test sets, TypeSafe's battery verbatim, result cards for hosted Jev, stock serving and Deterministic Jev, and the self-consistency cookbooks on all three.</li><li>Next: WildGuardTest and XSTest responses once access is granted, the output-side battery, and open guard models (Llama Guard, WildGuard) as baselines.</li><li>Receipts and fingerprints that include patched engine sources.</li></ul></div></div>
+    <div class="phase"><span class="when">v0.2 · in progress</span><div><h3>Flagship suite: guardrails</h3><ul><li>Done: 2,236 messages from four test sets, TypeSafe's battery verbatim, result cards for hosted Jev, default serving and Deterministic Jev, and the self-consistency cookbooks on all three.</li><li>Next: WildGuardTest and XSTest responses once access is granted, the output-side battery, and open guard models (Llama Guard, WildGuard) as baselines.</li><li>Receipts and fingerprints that include patched engine sources.</li></ul></div></div>
     <div class="phase"><span class="when">v0.3</span><div><h3>Community</h3><ul><li>Three more suites, a contributor guide and task-card template, CI, and the SGLang patch proposed upstream.</li></ul></div></div>
     <div class="phase"><span class="when">v1.0</span><div><h3>Standard</h3><ul><li>The determinism spec with a compliance test, a public result board, determinism across GPU models, and a deterministic MoE model.</li></ul></div></div>
   </div>
@@ -539,14 +539,14 @@ showPage();
 
 
 /* guardrails */
-const GNAMES = { "hosted-jev": "Hosted Jev 1.13", "stock-nimble": "Stock serving", "detjev": "Deterministic Jev" };
+const GNAMES = { "hosted-jev": "Hosted Jev 1.13", "default-serving": "Default serving", "djev": "Deterministic Jev" };
 function chips(host, ex, caption) {
   const lane = (n, c, w) => {
     const calls = ex.calls[n];
     return `<div class="lane"><div class="who">${GNAMES[n]}<small>${calls.length} identical calls</small></div><div class="calls" style="grid-template-columns:repeat(10,minmax(0,1fr))">` +
       calls.map(x => `<div class="call ${x.action === "pass" ? "yes" : ""}" style="--c:${c};--w:var(--off-wash)"><b>${x.action.toUpperCase()}</b>${x.nouls.harmful_request.toFixed(2)}</div>`).join("") + "</div></div>";
   };
-  host.innerHTML = lane("hosted-jev", "var(--jev)") + lane("detjev", "var(--on)");
+  host.innerHTML = lane("hosted-jev", "var(--jev)") + lane("djev", "var(--on)");
   caption.innerHTML = `<b>“${ex.text}”</b> (XSTest, labelled unsafe). Each box is one call and its action under the cookbook's strict policy. The number is the harmful-request probability. A passed box means the message reached the model.`;
 }
 (function guard() {
@@ -554,35 +554,35 @@ function chips(host, ex, caption) {
   const ex = G.examples[0];
   chips(document.getElementById("guard-strip"), ex, document.getElementById("guard-caption"));
   const c = n => G.cards[n].strict;
-  const h = c("hosted-jev"), d = c("detjev");
+  const h = c("hosted-jev"), d = c("djev");
   const pct1 = x => (100 * x).toFixed(0) + "%";
   const hp = ex.calls["hosted-jev"].filter(x => x.action === "pass").length / ex.calls["hosted-jev"].length;
   document.getElementById("guard-summary").innerHTML =
     `On this message a retrying attacker gets past hosted Jev within three tries ${pct1(1 - (1 - hp) ** 3)} of the time. Across the whole suite, hosted Jev changed its action between identical calls on ${h.consistency.action_flips} messages, and ${h.retry_attack.leaky_items} unsafe messages got through on some calls but not others. Deterministic Jev changed nothing: ${d.consistency.action_flips} and ${d.retry_attack.leaky_items}. It also caught ${pct1(d.detection.all.per_run_mean.recall)} of unsafe messages against ${pct1(h.detection.all.per_run_mean.recall)}, with the same false-alarm rate of about ${pct1(d.detection.all.per_run_mean.fpr)}.`;
 
   const lat = n => G.latency[n] ? G.latency[n][0].p50_ms.toFixed(0) + " ms" : "–";
-  const rows = ["hosted-jev", "stock-nimble", "detjev"].map(n => {
+  const rows = ["hosted-jev", "default-serving", "djev"].map(n => {
     const x = c(n), m = x.detection.all.per_run_mean, cons = x.consistency, r = x.retry_attack;
-    return `<tr${n === "detjev" ? ' class="hl"' : ""}><td>${GNAMES[n]}</td><td class="num">${pct1(m.recall)}</td><td class="num">${pct1(m.fpr)}</td><td class="num">${m.f1.toFixed(3)}</td>` +
+    return `<tr${n === "djev" ? ' class="hl"' : ""}><td>${GNAMES[n]}</td><td class="num">${pct1(m.recall)}</td><td class="num">${pct1(m.fpr)}</td><td class="num">${m.f1.toFixed(3)}</td>` +
       `<td class="num">${(100 * cons.identical_rate).toFixed(1)}%</td><td class="num">${cons.action_flips}</td><td class="num">${r.leaky_items} / ${r.unsafe_items}</td><td class="num">${lat(n)}</td></tr>`;
   });
   document.getElementById("gr-main").innerHTML = `<thead><tr><th>${G.items} messages, strict policy</th><th class="num">unsafe caught</th><th class="num">safe flagged</th><th class="num">F1</th><th class="num">bit-identical repeats</th><th class="num">action changed</th><th class="num">leaks on some calls</th><th class="num">latency</th></tr></thead><tbody>${rows.join("")}</tbody>`;
 
   const srcs = ["xstest", "toxicchat", "in_the_wild", "jbb"], sname = { xstest: "XSTest", toxicchat: "ToxicChat", in_the_wild: "In-the-wild jailbreaks", jbb: "JailbreakBench" };
-  document.getElementById("gr-src").innerHTML = `<thead><tr><th>F1 by test set (caught / flagged-safe)</th>${["hosted-jev", "stock-nimble", "detjev"].map(n => `<th class="num">${GNAMES[n]}</th>`).join("")}<th class="num">action changes, hosted</th></tr></thead><tbody>` +
-    srcs.map(sc => `<tr><td>${sname[sc]}</td>${["hosted-jev", "stock-nimble", "detjev"].map(n => { const m = c(n).detection[sc].per_run_mean; return `<td class="num">${m.f1.toFixed(2)} <span class="note">(${pct1(m.recall)} / ${pct1(m.fpr)})</span></td>`; }).join("")}<td class="num">${c("hosted-jev").consistency.by_source[sc]}</td></tr>`).join("") + "</tbody>";
+  document.getElementById("gr-src").innerHTML = `<thead><tr><th>F1 by test set (caught / flagged-safe)</th>${["hosted-jev", "default-serving", "djev"].map(n => `<th class="num">${GNAMES[n]}</th>`).join("")}<th class="num">action changes, hosted</th></tr></thead><tbody>` +
+    srcs.map(sc => `<tr><td>${sname[sc]}</td>${["hosted-jev", "default-serving", "djev"].map(n => { const m = c(n).detection[sc].per_run_mean; return `<td class="num">${m.f1.toFixed(2)} <span class="note">(${pct1(m.recall)} / ${pct1(m.fpr)})</span></td>`; }).join("")}<td class="num">${c("hosted-jev").consistency.by_source[sc]}</td></tr>`).join("") + "</tbody>";
 
   const seq = (e, n) => e.calls[n].map(x => x.action).join(" · ");
   document.getElementById("gr-ex").innerHTML = `<thead><tr><th>Message</th><th>Hosted Jev, 10 calls</th><th>Deterministic Jev, 5 calls</th></tr></thead><tbody>` +
-    G.examples.map(e => `<tr><td>${e.text.slice(0, 110)}${e.text.length > 110 ? "…" : ""} <span class="note">(${e.source}, ${e.unsafe ? "unsafe" : "safe"})</span></td><td class="mono">${seq(e, "hosted-jev")}</td><td class="mono">${seq(e, "detjev")}</td></tr>`).join("") + "</tbody>";
+    G.examples.map(e => `<tr><td>${e.text.slice(0, 110)}${e.text.length > 110 ? "…" : ""} <span class="note">(${e.source}, ${e.unsafe ? "unsafe" : "safe"})</span></td><td class="mono">${seq(e, "hosted-jev")}</td><td class="mono">${seq(e, "djev")}</td></tr>`).join("") + "</tbody>";
 })();
 (function consistencyTable() {
   const C = D.consistency; if (!C) return;
   const conds = [["noul", "identical", "sequential"], ["noul", "identical", "concurrent"], ["noul", "uid", "sequential"], ["choice", "identical", "sequential"], ["choice", "identical", "concurrent"], ["choice", "uid", "sequential"]];
   const label = ([k, p, m]) => `${k === "noul" ? "Claim, 14 yes/no" : "Moderation, 8 choices"} · ${p === "uid" ? "fresh uid" : "identical bytes"} · ${m}`;
   const cell = (n, cd) => { const x = C[n].find(c => c.kind === cd[0] && c.protocol === cd[1] && c.mode === cd[2]); return x ? `${x.distinct_answer_sets}/${x.n}${x.flipping.length ? ` <span class="note">${x.flipping.join(", ")}</span>` : ""}` : "–"; };
-  document.getElementById("cons").innerHTML = `<thead><tr><th>Condition (distinct answer sets of 15, questions that changed)</th>${["hosted-jev", "stock-nimble", "detjev"].map(n => `<th>${GNAMES[n]}</th>`).join("")}</tr></thead><tbody>` +
-    conds.map(cd => `<tr><td>${label(cd)}</td>${["hosted-jev", "stock-nimble", "detjev"].map(n => `<td class="mono">${cell(n, cd)}</td>`).join("")}</tr>`).join("") + "</tbody>";
+  document.getElementById("cons").innerHTML = `<thead><tr><th>Condition (distinct answer sets of 15, questions that changed)</th>${["hosted-jev", "default-serving", "djev"].map(n => `<th>${GNAMES[n]}</th>`).join("")}</tr></thead><tbody>` +
+    conds.map(cd => `<tr><td>${label(cd)}</td>${["hosted-jev", "default-serving", "djev"].map(n => `<td class="mono">${cell(n, cd)}</td>`).join("")}</tr>`).join("") + "</tbody>";
 })();
 
 /* 1. hash wall */
@@ -687,7 +687,7 @@ function strips(host, series, qs) {
     { name: "Jev 1.13 (published, fresh uid)", color: "var(--jev)", values: D.cookbook.jev_noul },
     { name: "Deterministic Jev (fresh uid)", color: "var(--on)", values: vals(pick(onRuns, "busy", "uid")) }], qs);
   strips(document.getElementById("cb-same"), [
-    { name: "Stock serving (identical bytes)", color: "var(--off)", values: vals(pick(offRuns, "busy", "identical")) },
+    { name: "Default serving (identical bytes)", color: "var(--off)", values: vals(pick(offRuns, "busy", "identical")) },
     { name: "Deterministic Jev (identical bytes)", color: "var(--on)", values: vals(pick(onRuns, "busy", "identical")) }], qs);
   document.getElementById("cb-off-std").textContent = fmt(pick(offRuns, "busy", "identical").mean_std, 4);
   document.getElementById("cb-on-uid-std").textContent = fmt(pick(onRuns, "busy", "uid").mean_std, 4);
@@ -771,8 +771,8 @@ function strips(host, series, qs) {
 
 /* 7. cost charts */
 const COST = [
-  { key: "off", name: "Stock serving, upstream flow", color: "var(--off)", dash: "" },
-  { key: "off_fast", name: "Stock, same flow", color: "var(--muted)", dash: "5 4" },
+  { key: "off", name: "Default serving, upstream flow", color: "var(--off)", dash: "" },
+  { key: "off_fast", name: "Default, same flow", color: "var(--muted)", dash: "5 4" },
   { key: "on", name: "Deterministic Jev", color: "var(--on)", dash: "" },
 ];
 const cold = key => D.latency[key].levels.filter(l => l.phase === "cold");
@@ -805,8 +805,8 @@ lineChart(document.getElementById("thr"), "decisions_per_s", v => v.toFixed(0), 
 document.getElementById("cost-legend").innerHTML = COST.map(c => `<span><i class="sw" style="background:${c.color}"></i>${c.name}</span>`).join("");
 (function costTable() {
   const rows = [
-    ["Stock serving, upstream flow", "off", false],
-    ["Stock, same flow as Deterministic Jev", "off_fast", false],
+    ["Default serving, upstream flow", "off", false],
+    ["Default, same flow as Deterministic Jev", "off_fast", false],
     ["Deterministic Jev", "on", true],
     ["Deterministic Jev with exact response memo", "on_memo", true],
   ];
@@ -833,7 +833,7 @@ document.getElementById("cost-legend").innerHTML = COST.map(c => `<span><i class
 (function golden() {
   const g = D.golden;
   const rows = [
-    ["Stock serving, after restart", g.off_restart, "off"],
+    ["Default serving, after restart", g.off_restart, "off"],
     ["Deterministic Jev, same process, new arrival order", g.on_same, "on"],
     ["Deterministic Jev, after restart", g.on_restart, "on"],
     ["Deterministic Jev, different GPU (same model of H100)", g.on_gpu4, "on"],

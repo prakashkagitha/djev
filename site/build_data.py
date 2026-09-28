@@ -126,7 +126,7 @@ bundle["hosted"] = hosted()
 def guardrails():
     G = ROOT / "results/guardrails"
     items = {json.loads(l)["id"]: json.loads(l) for l in open(ROOT / "data/guardrails_v1.jsonl")}
-    names = ["hosted-jev", "stock-nimble", "detjev"]
+    names = ["hosted-jev", "default-serving", "djev"]
     cards = {n: {pol: json.loads((G / n / f"card_{pol}.json").read_text()) for pol in ("strict", "permissive")}
              for n in names}
     for n in names:
@@ -152,7 +152,7 @@ def guardrails():
 
 def consistency():
     C = ROOT / "results/typesafe_consistency"
-    return {p.stem: [{k: v for k, v in c.items() if k != "questions"} | {"counts": {q: x["counts"] for q, x in c["questions"].items()}}
+    return {p.stem: [{k: v for k, v in c.items() if k not in ("questions", "draws")} | {"counts": {q: x["counts"] for q, x in c["questions"].items()}}
                      for c in json.loads(p.read_text())["conditions"]] for p in C.glob("*.json")}
 
 

@@ -20,6 +20,7 @@ import statistics as st
 from pathlib import Path
 
 from replaykit.client import Backend, Client, body_bytes
+from tasks.typesafe_consistency.metrics import choice_metrics, noul_metrics
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -74,7 +75,9 @@ async def main():
                     labels = [d[0] for d in ds]
                     qs[q] = {"p": [d[1] for d in ds], "labels": labels,
                              "counts": {l: labels.count(l) for l in sorted(set(labels))}}
-                cond = {"kind": kind, "protocol": protocol, "mode": mode,
+                draws = [r["answers"] for r in res]
+                ts = (noul_metrics if kind == "noul" else choice_metrics)(draws)
+                cond = {"kind": kind, "protocol": protocol, "mode": mode, "typesafe_metrics": ts, "draws": draws,
                         "distinct_answer_sets": len({r["hash"] for r in res}), "n": len(res),
                         "mean_std": st.mean(st.pstdev(v["p"]) for v in qs.values()),
                         "flipping": [q for q, v in qs.items() if len(v["counts"]) > 1],
@@ -83,7 +86,8 @@ async def main():
                         "p50_ms": sorted(r["ms"] for r in res)[len(res) // 2], "questions": qs}
                 out["conditions"].append(cond)
                 print(f"[{name}] {kind:6s} {protocol:9s} {mode:10s} distinct {cond['distinct_answer_sets']:2d}/{len(res)} "
-                      f"std {cond['mean_std']:.4f} flips {cond['flipping']}", flush=True)
+                      f"raw {ts['raw_agree']:.1%} policy {ts['policy_agree']:.1%} unc {ts['uncertain']:.1%} "
+                      f"conf {ts['conflicts']} std {ts['mean_std']:.4f} max {ts['max_std']:.4f}", flush=True)
     path = ROOT / "results/typesafe_consistency" / f"{name}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(out))
