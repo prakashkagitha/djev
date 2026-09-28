@@ -4,7 +4,7 @@
 
 djev is an open, self-hosted server for TypeSafe's [Jev API](https://docs.typesafe.ai/api): `POST /v1/systemone` with `noul`, `choice` and `score` questions. The same request bytes always return the same probabilities, whatever else is running on the GPU, after a restart, and on another GPU of the same model.
 
-<p align="center"><img src="assets/same_question.gif" width="820" alt="Hosted Jev answers the same insurance question YES 6 times and NO 9 times over 15 identical calls; djev gives the same answer 15 times"></p>
+<p align="center"><img src="assets/hero/djev.gif" width="900" alt="The same insurance-claim request sent 15 times: hosted Jev answers YES 6 times and NO 9 times with 15 different answer hashes; djev returns one identical answer 15 times. Below: 720/720 repeats bit-identical under load, guardrail decision changes 44 to 0, 324/324 decisions replayed after restart and on another GPU."></p>
 
 Jev is built as a fast decision function for software: routing, triage, moderation and guardrails. Code that branches on a decision needs the same input to take the same branch. Otherwise the decision cannot be replayed when debugging, cannot be pinned in a test, cannot be re-derived for an audit, and, for a guardrail, can be beaten by sending the same message again.
 
